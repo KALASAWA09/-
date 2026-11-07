@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ให้โอกาสเค้าได้แก้ไขสิ่งที่เค้าผิดพลาดได้ไหมค้าบบบ</title>
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+
+<div class="background">
+  <div class="card">
+
+    <p class="subtitle">Happy 2nd Anniversary and 6 months</p>
+
+    <img id="charImg"src="img/2871db3e-3ae9-487c-8ae7-703083cd952b (1).jfif" alt="character" class="card-img">
+
+    <h2 class="title">เค้าขอโทษค้าบ ให้โอกาสเค้าได้คุยกับเธอดีๆ อีกครั้งได้ไหม?</h2>
+
+    <p class="description">เค้าไม่ได้อยากบังคับให้เธอให้อภัยแค่อยากให้เห็นว่าเธอสำคัญกับเค้ามากจริงๆ</p>
+    
+    <div class="button-group">
+
+    <button class="btn-primary">ลองคุยกันอีกครั้งนะ</button>
+
+    <button class="btn-secondary" id="noBtn">ยังไม่อยากคุย</button>
+
+    </div>
+  </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const noBtn = document.getElementById("noBtn");
+        const primaryBtn = document.querySelector(".btn-primary");
+        const title = document.querySelector(".title");
+        const desc = document.querySelector(".description");
+        const charImg = document.getElementById("charImg");
+        const group = noBtn.closest(".button-group");
+
+        if (!noBtn || !primaryBtn || !title || !desc || !charImg) {
+            console.error("หา element ไม่ครบ");
+            return;
+        }
+
+        // ข้อความแต่ละขั้น (ขั้นสุดท้ายคือขั้นที่ 6)
+        const steps = [
+            {
+                title: "เค้าขอโทษค้าบ ให้โอกาสเค้าได้คุยกับเธอดีๆ อีกครั้งได้ไหม?",
+                desc: "เค้าไม่ได้อยากบังคับให้เธอให้อภัยแค่อยากให้เห็นว่าเธอสำคัญกับเค้ามากจริงๆ",
+                img: "img/sad.jpg",
+                primaryText: "ลองคุยดูกันอีกครั้งนะ",
+                secondaryText: "ยังไม่อยากคุยอยู่ดี"
+            },
+            {
+                title: "เค้าขอโทษจริงๆ นะ ยังไม่ยอมคุยกับเค้าเลยหรอ?",
+                desc: "เค้าไม่ได้อยากบังคับให้เธอให้อภัยแค่อยากให้เห็นว่าเธอสำคัญกับเค้ามากจริงๆ",
+                img: "img/sad2.jpg",
+                primaryText: "ลองคุยดูกันอีกครั้งนะ",
+                secondaryText: "ยังไม่อยากคุยอยู่ดี"
+            },
+            {
+                title: "อาาเค้าขอโทษที่ลืมวันคบรอบและไม่ใส่ใจเธอมากกว่านี้",
+                desc: "เค้าไม่ได้อยากบังคับให้เธอให้อภัยแค่อยากให้เห็นว่าเธอสำคัญกับเค้ามากจริงๆ",
+                img: "img/sad3.jpg",
+                primaryText: "นะค้าบบ",
+                secondaryText: "ยังอะ"
+            },
+            {
+                title: "เค้าขอโทษที่ ปล่อยเธอร้องไห้คนเดียว",
+                desc: "เค้าไม่ได้อยากบังคับให้เธอให้อภัยแค่อยากให้เห็นว่าเธอสำคัญกับเค้ามากจริงๆ",
+                img: "img/sad3.jpg",
+                primaryText: "ให้โอกาสเค้านะ",
+                secondaryText: "คิดก่อนอะ"
+            },
+            {
+                title: "ได้โปรด... อย่าเพิ่งไปนะ",
+                desc: "เค้าไม่ได้อยากบังคับให้เธอให้อภัยแค่อยากให้เห็นว่าเธอสำคัญกับเค้ามากจริงๆ",
+                img: "img/sad3.jpg",
+                primaryText: "เปิดใจให้นิดนึง",
+                secondaryText: "เธอยังเด็กอยู่เลย"
+            },
+            {
+                title: "โอเคนะ เราจะให้เวลาเธอเต็มที่เลย",
+                desc: "เค้าเข้าใจแล้ว เค้าจะตั้งใจเรียนและรีบไปหาเธอนะ เธอไม่ต้องรอนะ เค้าจะรีบตามไปเอง",
+                img: "img/happy.jpg",
+                primaryText: "โอเค ลองคุยกันอีกครั้งนะ",
+                secondaryText: "ขอบคุณที่เข้าใจนะ",
+                final: true
+            }
+        ];
+
+        // ข้อความหลังกดขั้นสุดท้าย (แสดงทีละชุด ทุก 3.5 วินาที)
+        const endingTexts = [
+            { title: "ขอบคุณที่รอเค้านะ", desc: "เค้าจะรอเธออยู่ตรงนี้เสมอ" },
+            { title: "เค้าจะรอเธอเสมอนะ", desc: "ไม่ต้องรีบตอบก็ได้" }
+        ];
+        let endingIndex = 0;
+
+        let step = 0;
+
+        // แสดงข้อความแบบค่อย ๆ ชัดขึ้น
+        function showText(el, text) {
+            el.style.transition = "none";
+            el.style.opacity = 0;
+            el.textContent = text;
+            el.offsetHeight; // บังคับให้เบราว์เซอร์อัปเดตก่อน
+            el.style.transition = "";
+            el.style.opacity = 1;
+        }
+
+        // แสดงข้อความทีละชุด ชุดแรกทันที ชุดถัดไปรอ 3.5 วินาที
+        function showEndingSequence() {
+            if (endingIndex >= endingTexts.length) return;
+
+            const isFirst = endingIndex === 0;
+            setTimeout(() => {
+                showText(title, endingTexts[endingIndex].title);
+                showText(desc, endingTexts[endingIndex].desc);
+                endingIndex++;
+                showEndingSequence();
+            }, isFirst ? 0 : 3500);
+        }
+
+        noBtn.addEventListener("click", () => {
+            // กดหลังขั้นสุดท้าย: ปุ่มและข้อความจางออก แล้วข้อความชุดแรกขึ้น
+            if (step === steps.length) {
+                group.classList.add("hide");
+                title.style.opacity = 0;
+                desc.style.opacity = 0;
+
+                setTimeout(() => {
+                    endingIndex = 0;
+                    showEndingSequence();
+                }, 800);
+
+                step++;
+                return;
+            }
+
+            // จบทุกขั้นแล้ว ไม่ทำอะไรเพิ่ม
+            if (step > steps.length) return;
+
+            const current = steps[step];
+
+            // ขั้นสุดท้าย: แสดงข้อความและปุ่มทันที ไม่มี fade
+            if (current.final) {
+                title.textContent = current.title;
+                desc.textContent = current.desc;
+                charImg.src = current.img;
+                primaryBtn.textContent = current.primaryText;
+                noBtn.textContent = current.secondaryText;
+
+                noBtn.classList.remove("escaped");
+                noBtn.style.left = "";
+                noBtn.style.top = "";
+                group.classList.remove("hide");
+                group.classList.add("final");
+
+                step++;
+                return;
+            }
+
+            // ขั้นปกติ
+            title.textContent = current.title;
+            desc.textContent = current.desc;
+            charImg.src = current.img;
+            primaryBtn.textContent = current.primaryText;
+            noBtn.textContent = current.secondaryText;
+
+            const maxX = window.innerWidth - noBtn.offsetWidth - 10;
+            const maxY = window.innerHeight - noBtn.offsetHeight - 10;
+            noBtn.classList.add("escaped");
+            noBtn.style.left = Math.random() * maxX + "px";
+            noBtn.style.top = Math.random() * maxY + "px";
+
+            step++;
+        });
+    });
+</script>
+
+
+</body>
+</html>
