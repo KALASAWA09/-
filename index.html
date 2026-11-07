@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ให้โอกาสเค้าได้แก้ไขสิ่งที่เค้าผิดพลาดได้ไหมค้าบบบ</title>
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+
+<div class="background">
+  <div class="card">
+
+    <p class="subtitle">Happy 2nd Anniversary and 6 months</p>
+
+    <img id="charImg"src="img/2871db3e-3ae9-487c-8ae7-703083cd952b (1).jfif" alt="character" class="card-img">
+
+    <h2 class="title">เค้าขอโทษค้าบ ให้โอกาสเค้าได้คุยกับเธอดีๆ อีกครั้งได้ไหม?</h2>
+
+    <p class="description">เค้าไม่ได้อยากบังคับให้เธอให้อภัยแค่อยากให้เห็นว่าเธอสำคัญกับเค้ามากจริงๆ</p>
+    
+    <div class="button-group">
+
+    <button class="btn-primary">ลองคุยกันอีกครั้งนะ</button>
+
+    <button class="btn-secondary" id="noBtn">ยังไม่อยากคุย</button>
+
+    </div>
+  </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const noBtn = document.getElementById("noBtn");
+        const primaryBtn = document.querySelector(".btn-primary");
+        const title = document.querySelector(".title");
+        const desc = document.querySelector(".description");
+        const charImg = document.getElementById("charImg");
+        const group = noBtn.closest(".button-group");
+
+        if (!noBtn || !primaryBtn || !title || !desc || !charImg) {
+            console.error("หา element ไม่ครบ");
+            return;
+        }
+
+        // แต่ละขั้น
+        // red.btnFromRed = ข้อความปุ่มแดงเมื่อกดปุ่มแดงเอง
+        // red.btnFromGray = ข้อความปุ่มแดงเมื่อกดปุ่มเทา
+        // gray.btn = ข้อความปุ่มเทา
+        const steps = [
+            {
+                img: "img/sad.jpg",
+                red: {
+                    title: "เธอให้โอกาสเค้าจริงหรอ?",
+                    desc: "เค้าไม่ได้อยากบังคับให้เธอให้อภัยแค่อยากให้เห็นว่าเธอสำคัญกับเค้ามากจริงๆ",
+                    btnFromRed: "ใช่",
+                    btnFromGray: "ลองคุยดูกันอีกครั้งนะ"
+                },
+                gray: {
+                    title: "เค้าขอโทษค้าบ ให้โอกาสเค้าได้คุยกับเธอดีๆ อีกครั้งได้ไหม?",
+                    desc: "เค้าไม่ได้อยากบังคับให้เธอให้อภัยแค่อยากให้เห็นว่าเธอสำคัญกับเค้ามากจริงๆ",
+                    btn: "ยังไม่อยากคุยอยู่ดี"
+                }
+            },
+            {
+                img: "img/sad2.jpg",
+                red: {
+                    title: "สัญญาเลยเค้าจะตั้งใจทำมันให้ออกมาดีที่สุด",
+                    desc: "เค้าไม่ได้อยากบังคับให้เธอให้อภัยแค่อยากให้เห็นว่าเธอสำคัญกับเค้ามากจริงๆ",
+                    btnFromRed: "ขอให้จริงเข้าใจไหม",
+                    btnFromGray: "ลองคุยดูกันอีกครั้งนะ"
+                },
+                gray: {
+                    title: "เค้าขอโทษจริงๆ นะ ยังไม่ยอมคุยกับเค้าเลยหรอ?",
+                    desc: "เค้าไม่ได้อยากบังคับให้เธอให้อภัยแค่อยากให้เห็นว่าเธอสำคัญกับเค้ามากจริงๆ",
+                    btn: "ยังไม่อยากคุยอยู่ดี"
+                }
+            },
+            {
+                img: "img/sad3.jpg",
+                red: {
+                    title: "เข้าใจแล้วค้าบบ เข้าจะตั้งใจและใส่ใจเธอให้มากๆเลยค้าบบ",
+                    desc: "เค้าไม่ได้อยากบังคับให้เธอให้อภัยแค่อยากให้เห็นว่าเธอสำคัญกับเค้ามากจริงๆ",
+                    btnFromRed: "ให้มันเหมือนที่ปากพูดแล้วกัน",
+                    btnFromGray: "นะค้าบบ"
+                },
+                gray: {
+                    title: "อาาเค้าขอโทษที่ลืมวันคบรอบและไม่ใส่ใจเธอมากกว่านี้",
+                    desc: "เค้าไม่ได้อยากบังคับให้เธอให้อภัยแค่อยากให้เห็นว่าเธอสำคัญกับเค้ามากจริงๆ",
+                    btn: "ยังอะ"
+                }
+            },
+            {
+                img: "img/sad3.jpg",
+                red: {
+                    title: "ค้าบ เค้าสัญญาว่าเค้าจะตั้งใจ และจะไม่ให้เธอเสียใจอีก",
+                    desc: "เค้าไม่ได้อยากบังคับให้เธอให้อภัยแค่อยากให้เห็นว่าเธอสำคัญกับเค้ามากจริงๆ",
+                    btnFromRed: "จริงปะ พูดจริงไหม",
+                    btnFromGray: "ให้โอกาสเค้านะ"
+                },
+                gray: {
+                    title: "เค้าขอโทษที่ ปล่อยเธอร้องไห้คนเดียว",
+                    desc: "เค้าไม่ได้อยากบังคับให้เธอให้อภัยแค่อยากให้เห็นว่าเธอสำคัญกับเค้ามากจริงๆ",
+                    btn: "ก็เธอไม่เคยใสใจเค้าไง"
+                }
+            },
+            {
+                img: "img/sad3.jpg",
+                red: {
+                    title: "พูดจิงค้าบบ เค้าจะใส่ใจเธอมากๆเยย",
+                    desc: "เค้าไม่ได้อยากบังคับให้เธอให้อภัยแค่อยากให้เห็นว่าเธอสำคัญกับเค้ามากจริงๆ",
+                    btnFromRed: "เปิดใจให้นิดนึง",
+                    btnFromGray: "เปิดใจให้นิดนึง"
+                },
+                gray: {
+                    title: "เธอค้าบเค้าขอพิสูจน์อีกครั้งได้ไหมค้าบ",
+                    desc: "เค้าไม่ได้อยากบังคับให้เธอให้อภัยแค่อยากให้เห็นว่าเธอสำคัญกับเค้ามากจริงๆ",
+                    btn: "เธอยังเด็กอยู่เลย"
+                }
+            },
+            {
+                img: "img/happy.jpg",
+                final: true,
+                red: {
+                    title: "แล้ววันนี้วันอะไรเอ้ยงั้นนะ",
+                    desc: "เค้าเข้าใจแล้ว ต่อจากนี้เราจะสู้ไปด้วยกันนะจะไม่ปล่อยใครร้องไห้อีกแล้ว ",
+                    btnFromRed: "วันที่เธอชอบลืมไง",
+                    btnFromGray: "โอเค ลองคุยกันอีกครั้งนะ"
+                },
+                gray: {
+                    title: "โอเคนะ เค้าจะให้เวลาเธอเต็มที่เลย เค้าจะเป็นกำลังใจให้เธอตลอดไปนะค้าบ",
+                    desc: "เค้าเข้าใจแล้ว เค้าจะตั้งใจเรียนและรีบไปหาเธอนะ เธอไม่ต้องรอนะ เค้าจะรีบตามไปเอง",
+                    btn: "ขอบคุณที่เข้าใจนะ"
+                }
+            }
+        ];
+
+        // ข้อความจบแยกตามปุ่มที่กด
+        const endingRed = [
+            { title: "เค้าจะไม่ลืมแล้วค้าบบ", desc: "เพราะเค้าจะไม่อยากให้เธอเสียน้ำตาอีกแล้วค้าบ อยู่เป็นกำลังใจกันและกันนะค้าบบ" },
+            { title: "สุขสันวันครบ2ปี 6เดือนนะค้าบ", desc: "อยู่กับเค้าตลอดไปนะเค้าจะเธอ มจพ แน่นอน เค้านี้แหละว่าที่cs มจพ😤" }
+        ];
+        const endingGray = [
+            { title: "เค้าจะรอเธอเสมอนะ", desc: "ไม่ต้องรอเค้านะ เค้าจะรีบไปหาเธอเอง เค้ารักเธอมากๆเลยนะค้าบบ" },
+            { title: "เข้าจะตั้งใจอ่านหนังสือและตั้งหาใจผลงาน", desc: "เค้าสัญญาว่าเค้าจะไปหาเธอแน่นอน เห็นไหมเค้าตั้งใจมากเลยนะ ฝึกแบบนี้ไปเรื้อยๆ เค้าต้องทำได้แน่นอน😢" }
+        ];
+        let endingList = endingRed;
+        let endingIndex = 0;
+        let step = 0;
+
+        // แสดงข้อความแบบค่อย ๆ ชัดขึ้น
+        function showText(el, text) {
+            el.style.transition = "none";
+            el.style.opacity = 0;
+            el.textContent = text;
+            el.offsetHeight; // บังคับให้เบราว์เซอร์อัปเดตก่อน
+            el.style.transition = "";
+            el.style.opacity = 1;
+        }
+
+        // แสดงข้อความจบทีละชุด ชุดแรกทันที ชุดถัดไปรอ 3.5 วินาที
+        function showEndingSequence() {
+            if (endingIndex >= endingList.length) return;
+
+            const isFirst = endingIndex === 0;
+            setTimeout(() => {
+                showText(title, endingList[endingIndex].title);
+                showText(desc, endingList[endingIndex].desc);
+                endingIndex++;
+                showEndingSequence();
+            }, isFirst ? 0 : 4000);
+        }
+
+        // ขั้นหลังสุดท้าย: จางปุ่มและเริ่มข้อความจบตามชุดของปุ่มที่กด
+        function runEnding(list) {
+            endingList = list;
+            group.classList.add("hide");
+            title.style.opacity = 0;
+            desc.style.opacity = 0;
+            setTimeout(() => {
+                endingIndex = 0;
+                showEndingSequence();
+            }, 800);
+            step++;
+        }
+
+        // ===== ปุ่มแดง: กดเองใช้ btnFromRed, ไม่ขยับ =====
+        primaryBtn.addEventListener("click", () => {
+            if (step > steps.length) return;
+            if (step === steps.length) return runEnding(endingRed);
+
+            const current = steps[step];
+            showText(title, current.red.title);
+            showText(desc, current.red.desc);
+            primaryBtn.textContent = current.red.btnFromRed;
+            charImg.src = current.img;
+
+            if (current.final) {
+                noBtn.classList.remove("escaped");
+                noBtn.style.left = "";
+                noBtn.style.top = "";
+                group.classList.remove("hide");
+                group.classList.add("final");
+            }
+            step++;
+        });
+
+        // ===== ปุ่มเทา: หัวข้อ/ปุ่มเทาใช้ชุดเทา, ปุ่มแดงเปลี่ยนเป็น btnFromGray, ขยับหนี =====
+        noBtn.addEventListener("click", () => {
+            if (step > steps.length) return;
+            if (step === steps.length) return runEnding(endingGray);
+
+            const current = steps[step];
+            showText(title, current.gray.title);
+            showText(desc, current.gray.desc);
+            noBtn.textContent = current.gray.btn;
+            primaryBtn.textContent = current.red.btnFromGray;
+            charImg.src = current.img;
+
+            if (current.final) {
+                noBtn.classList.remove("escaped");
+                noBtn.style.left = "";
+                noBtn.style.top = "";
+                group.classList.remove("hide");
+                group.classList.add("final");
+            } else {
+                const maxX = window.innerWidth - noBtn.offsetWidth - 10;
+                const maxY = window.innerHeight - noBtn.offsetHeight - 10;
+                noBtn.classList.add("escaped");
+                noBtn.style.left = Math.random() * maxX + "px";
+                noBtn.style.top = Math.random() * maxY + "px";
+            }
+            step++;
+        });
+    });
+</script>
+
+
+
+
+
+</body>
+</html>

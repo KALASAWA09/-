@@ -1,0 +1,199 @@
+@import url('https://fonts.googleapis.com/css2?family=Bungee&family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Sarabun:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bungee&family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&family=Mali:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;1,200;1,300;1,400;1,500;1,600;1,700&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Sarabun:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap');
+
+
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: linear-gradient(to bottom right, #ffc2d1, #ffffff);
+    overflow: hidden;
+    font-family: "Montserrat", "Sarabun", sans-serif;
+}
+
+.card h2,
+.card p,
+.card button {
+    font-family: inherit;
+}
+
+
+.background{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+
+    .card{
+        background-color: #FFEDF6;
+        width: 90%;
+        max-width: 450px;
+        padding: 40px 30px;
+        border-radius: 25px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+
+         /* จัดตำแหน่ง */
+
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .card .subtitle {
+        font-size: 4.5mm;
+        color: #FFF8F8;
+        letter-spacing: 1px;
+        margin-bottom: 15px;
+        font-weight: bold;
+        background-color: #F9CADB;
+        border-radius: 15px;
+        padding: 5px 5px;
+        margin-bottom: 30px;
+        white-space: nowrap;
+        display: inline-block;
+        
+        
+    }
+
+    .card img {
+    
+    width: 150px;
+    height: auto;
+    margin-bottom: 20px;
+    flex-shrink: 0;  
+
+    }
+
+    .card h2 {
+    font-size: 1.4rem;
+    color: #2d3748;
+    line-height: 1.5;
+    line-height: 1.5;
+    margin: 0 auto 10px;
+    width: fit-content;
+    max-width: 100%;
+    text-wrap: balance;
+}
+
+
+.card p {
+    font-size: 1rem;
+    color: #EBD;
+    line-height: 1.4;
+    margin: 0 auto 10px;
+    text-wrap: balance;
+    width: fit-content;
+    max-width: 100%;
+}
+
+.card .button-group {
+    position: relative;
+    display: flex;
+    gap: 25px;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.card button {
+    flex: 1;
+    padding: 15px 15px;
+    border: none;
+    border-radius: 14px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.card .btn-primary {
+    background-color: #ff6b6b;
+    color: white;
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+    flex: 0 0 calc(50% - 12.5px);
+}
+
+
+.card .btn-secondary {
+    background-color: #f1f3f5;
+    color: #666666;
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+    transition: left 0.25s ease, top 0.25s ease;
+}
+
+.card .btn-secondary.escaped {
+    position: fixed;
+    z-index: 999;
+    width: 150px;   
+}
+.card .button-group.final {
+    flex-direction: column;
+}
+
+.card .button-group.final .btn-primary {
+    flex: 0 0 100%;
+}
+
+.card .button-group.final .btn-secondary {
+    position: static;
+    width: 100%;
+    margin-top: 4px;
+    background-color: #f1f3f5;
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+    transition: left 0.25s ease, top 0.25s ease;
+    color: #555;
+}
+.card .button-group.final {
+    flex-direction: column;
+    gap: 8px;
+}
+
+.card .button-group.final {
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* ข้อความค่อย ๆ ปรากฏ */
+.card .title,
+.card .description {
+    transition: opacity 2s ease;
+}
+
+/* ซ่อนปุ่มแบบค่อย ๆ จาง */
+.card .button-group.hide {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.8s ease, visibility 0.8s;
+}
+
+}
+.card .btn-secondary {
+    background-color: #f1f3f5;
+    color: #666666;
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+    transition: left 0.25s ease, top 0.25s ease;
+}
+
+.card .btn-secondary.escaped {
+    position: fixed;
+    z-index: 999;
+    width: 150px;
+}
+
+/* ข้อความค่อย ๆ ปรากฏ */
+.card .title,
+.card .description {
+    transition: opacity 0.8s ease;
+}
+
+.card .button-group {
+    transition: opacity 0.8s ease;
+}
+
+.card .button-group.hide {
+    opacity: 0;
+    visibility: hidden;
+}
