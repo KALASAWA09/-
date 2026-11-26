@@ -34,7 +34,7 @@ public final class TitleManager {
 		return server.overworld().getAttachedOrCreate(ModAttachments.TITLE_HOLDERS);
 	}
 
-	private static void setHolders(MinecraftServer server, Map<String, String> holders) {
+	public static void setHolders(MinecraftServer server, Map<String, String> holders) {
 		server.overworld().setAttached(ModAttachments.TITLE_HOLDERS, Map.copyOf(holders));
 	}
 
@@ -137,6 +137,17 @@ public final class TitleManager {
 				grant(player, title, null);
 				return;
 			}
+		}
+	}
+
+	/** On join: drops a title this player still remembers but no longer holds (taken by an admin while offline). */
+	public static void reconcile(ServerPlayer player) {
+		SoulData data = SoulManager.get(player);
+		SoulTitle title = data.soulTitle();
+		if (title != null && !player.getUUID().toString().equals(holders(SoulManager.server(player)).get(title.id))) {
+			SoulData copy = data.copy();
+			copy.title = "";
+			SoulManager.set(player, copy);
 		}
 	}
 

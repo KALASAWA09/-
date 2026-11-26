@@ -351,5 +351,16 @@
   "power.sacredsouls.frost_step.summary": "น้ำใต้เท้ากลายเป็นน้ำแข็ง",
   "power.sacredsouls.frost_step.1": "รัศมี 1 บล็อก",
   "power.sacredsouls.frost_step.2": "รัศมี 2 บล็อก",
-  "power.sacredsouls.frost_step.3": "รัศมี 3 บล็อก"
+  "power.sacredsouls.frost_step.3": "รัศมี 3 บล็อก",
+  "msg.sacredsouls.cmd.info_header": "วิญญาณของ %s",
+  "msg.sacredsouls.cmd.info_stats": "พลังวิญญาณ %s/%s · แก่น %s · ฉายา: %s · กินมาแล้ว %s ชนิด",
+  "msg.sacredsouls.cmd.info_no_slots": "ยังไม่ได้กินไอเทมวิญญาณเลย",
+  "msg.sacredsouls.cmd.info_slot": "ช่อง %s: %s (เลเวล %s)",
+  "msg.sacredsouls.cmd.none": "ไม่มี",
+  "msg.sacredsouls.cmd.unknown_title": "ไม่รู้จักฉายา: %s",
+  "msg.sacredsouls.cmd.title_given": "มอบฉายา %s ให้ %s แล้ว",
+  "msg.sacredsouls.cmd.no_title": "%s ไม่มีฉายา",
+  "msg.sacredsouls.cmd.title_cleared": "ถอดฉายา %s จาก %s แล้ว",
+  "msg.sacredsouls.cmd.energy_set": "ตั้งพลังวิญญาณของ %s เป็น %s แล้ว",
+  "msg.sacredsouls.cmd.essence_added": "เพิ่มแก่น %s ให้ %s (ตอนนี้มี %s)"
 }

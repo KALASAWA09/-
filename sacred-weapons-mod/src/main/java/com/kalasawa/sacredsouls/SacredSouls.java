@@ -12,6 +12,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
+import com.kalasawa.sacredsouls.command.SoulCommands;
 import com.kalasawa.sacredsouls.item.ModItems;
 import com.kalasawa.sacredsouls.network.AirJumpPayload;
 import com.kalasawa.sacredsouls.network.SoulActionPayload;
@@ -35,6 +36,7 @@ public class SacredSouls implements ModInitializer {
 		ModAttachments.init();
 		ModItems.init();
 		LootSources.init();
+		SoulCommands.init();
 
 		PayloadTypeRegistry.playC2S().register(SoulActionPayload.TYPE, SoulActionPayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(AirJumpPayload.TYPE, AirJumpPayload.CODEC);
@@ -58,6 +60,7 @@ public class SacredSouls implements ModInitializer {
 				SoulManager.updateSoullessHealth(newPlayer, SoulManager.get(newPlayer)));
 		ServerPlayerEvents.JOIN.register(player -> {
 			SoulManager.updateSoullessHealth(player, SoulManager.get(player));
+			TitleManager.reconcile(player);
 			TitleManager.checkConditions(player);
 		});
 		ServerPlayerEvents.LEAVE.register(POWERS::onLeave);

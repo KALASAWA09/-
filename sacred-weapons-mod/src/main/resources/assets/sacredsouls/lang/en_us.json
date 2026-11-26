@@ -351,5 +351,16 @@
   "power.sacredsouls.frost_step.summary": "Water freezes under your feet.",
   "power.sacredsouls.frost_step.1": "Radius 1 block",
   "power.sacredsouls.frost_step.2": "Radius 2 blocks",
-  "power.sacredsouls.frost_step.3": "Radius 3 blocks"
+  "power.sacredsouls.frost_step.3": "Radius 3 blocks",
+  "msg.sacredsouls.cmd.info_header": "Soul of %s",
+  "msg.sacredsouls.cmd.info_stats": "Energy %s/%s · Essence %s · Title: %s · Kinds devoured: %s",
+  "msg.sacredsouls.cmd.info_no_slots": "No soul items devoured yet.",
+  "msg.sacredsouls.cmd.info_slot": "Slot %s: %s (level %s)",
+  "msg.sacredsouls.cmd.none": "none",
+  "msg.sacredsouls.cmd.unknown_title": "Unknown title: %s",
+  "msg.sacredsouls.cmd.title_given": "Gave the title %s to %s",
+  "msg.sacredsouls.cmd.no_title": "%s holds no title.",
+  "msg.sacredsouls.cmd.title_cleared": "Took the title %s from %s",
+  "msg.sacredsouls.cmd.energy_set": "Set the soul energy of %s to %s",
+  "msg.sacredsouls.cmd.essence_added": "Added %s essence to %s (now %s)"
 }
