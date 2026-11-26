@@ -38,10 +38,10 @@ def mute(c):
     r,g,b=[v/255 for v in c[:3]]
     h,l,s_=colorsys.rgb_to_hls(r,g,b)
     gray = s_ < 0.12
-    s_*=0.8
+    s_=min(1.0,s_*1.15)
     r,g,b=colorsys.hls_to_rgb(h,l,s_)
     c=(int(r*255),int(g*255),int(b*255))
-    return mix(c,(110,140,160),0.22) if gray else c
+    return mix(c,(120,140,170),0.12) if gray else c
 def mix(a,b,t): return tuple(int(a[i]*(1-t)+b[i]*t) for i in range(3))
 def image(name):
     g = bone() if name=="giant_bone" else grid(name)
@@ -67,11 +67,8 @@ def image(name):
                 lit=sum(1 for k in (1,2) for dx,dy in ((0,-k),(-k,0),(-k,-k)) if not filled(x+dx,y+dy))
                 dark=sum(1 for k in (1,2) for dx,dy in ((0,k),(k,0),(k,k)) if not filled(x+dx,y+dy))
                 v=lit-dark
-                if v>=3: c=mix(c,LIGHT,0.42)
-                elif v>=1: c=mix(c,LIGHT,0.2)
-                elif v<=-3: c=mix(c,PLUM,0.45)
-                elif v<=-1: c=mix(c,PLUM,0.24)
-                elif dist[y][x]>=3: c=mix(c,LIGHT,0.06)
+                if v>=2: c=mix(c,(255,255,240),0.45)
+                elif v<=-2: c=mix(c,(40,16,40),0.42)
             img.putpixel((x,y),c+(255,))
     if name in GLOSS:
         best=None
@@ -87,20 +84,24 @@ def image(name):
             if cand:
                 xx,yy=max(cand,key=lambda p:p[0]+p[1])
                 img.putpixel((xx-1,yy-1) if filled(xx-1,yy-1) else (xx,yy),mix(img.getpixel((xx,yy))[:3],(255,255,250),0.45)+(255,))
+    OUT=(26,14,20,255); SHADOW=(14,8,12,255)
+    shape=set((x,y) for y in range(16) for x in range(16) if g[y][x])
     for y in range(16):
         for x in range(16):
             if g[y][x]: continue
-            for dx,dy in ((1,0),(-1,0),(0,1),(0,-1)):
-                nx,ny=x+dx,y+dy
-                if filled(nx,ny):
-                    c=mute(g[ny][nx]); c=mix(tuple(int(v*.42) for v in c),PLUM,0.35)
-                    img.putpixel((x,y),c+(255,)); break
+            if any((x+dx,y+dy) in shape for dx,dy in ((1,0),(-1,0),(0,1),(0,-1))):
+                img.putpixel((x,y),OUT); shape_o=True
+    solid=set((x,y) for y in range(16) for x in range(16) if img.getpixel((x,y))[3])
+    for (x,y) in solid:
+        for sx,sy in ((x+1,y+1),(x,y+1),(x+1,y)):
+            if 0<=sx<16 and 0<=sy<16 and (sx,sy) not in solid and (sx-1,sy-1) in solid:
+                img.putpixel((sx,sy),SHADOW)
     return img
 names=list(I.keys())+["giant_bone"]
 if __name__=="__main__":
     out=sys.argv[1]
     cols=9; S=8; pad=8
-    sheet=Image.new("RGBA",(cols*(16*S+pad)+pad,((len(names)+cols-1)//cols)*(16*S+pad+12)+pad),(150,160,170,255))
+    sheet=Image.new("RGBA",(cols*(16*S+pad)+pad,((len(names)+cols-1)//cols)*(16*S+pad+12)+pad),(70,72,76,255))
     d=ImageDraw.Draw(sheet)
     for i,n in enumerate(names):
         im=image(n).resize((16*S,16*S),Image.NEAREST)
