@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:sugar",
+    "B": "minecraft:leather",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:swift_hoof",
+    "count": 1
+  }
+}

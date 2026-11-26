@@ -3,7 +3,7 @@
 Fabric mod for Minecraft 1.21.11 (Java 21, Fabric API 0.141.6+1.21.11).
 
 - Press **K** to open the soul screen: 5 devour slots, click **อัป** to upgrade a slot (levels 1-3), **คาย** to eject with Cleansing Water.
-- Hold right-click with a soul item to let the soul devour it. 20 soul items, all passive powers.
+- Hold right-click with a soul item to let the soul devour it. 50 soul items, all passive powers.
 - Soul energy 0-10 from PvP. At 0 the player becomes a soulless body (no powers, less health) until Summoning Incense is used.
 - 9 titles earned by deeds. One holder per server, killing the holder takes the title.
 

@@ -24,6 +24,9 @@ import com.kalasawa.sacredsouls.soul.SoulManager;
  * killing a holder takes their title, and a soulless body loses its title.
  */
 public final class TitleManager {
+	/** How many different soul items ผู้กลืนพันวิญญาณ needs (half of the 50). */
+	public static final int DEVOURER_KINDS = 25;
+
 	private TitleManager() {
 	}
 
@@ -105,7 +108,7 @@ public final class TitleManager {
 			case WAR_GOD -> data.killStreak >= 10;
 			case REAPER -> data.soullessCaused >= 3;
 			case HEIR -> false; // Needs the awakening ritual at the shrine (phase 2).
-			case DEVOURER -> data.devoured.size() >= SoulPower.values().length;
+			case DEVOURER -> data.devoured.size() >= DEVOURER_KINDS;
 			case FALLEN_KING -> {
 				int others = 0;
 				for (String held : data.titlesHeld) {

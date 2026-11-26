@@ -54,6 +54,37 @@ public final class LootSources {
 		chest("shipwreck_treasure", SoulPower.HAUNTED_COMPASS, 0.10f);
 		chest("shipwreck_supply", SoulPower.HAUNTED_COMPASS, 0.10f);
 		chest("shipwreck_map", SoulPower.HAUNTED_COMPASS, 0.10f);
+		mob("zombie_villager", SoulPower.VAMPIRE_TOOTH, 0.04f);
+		chest("jungle_temple", SoulPower.THORN_VINE, 0.25f);
+		mob("drowned", SoulPower.STORM_ROD, 0.03f);
+		mob("elder_guardian", SoulPower.TIDE_PEARL, 0.50f);
+		chest("buried_treasure", SoulPower.TIDE_PEARL, 0.20f);
+		chest("desert_pyramid", SoulPower.GOLDEN_SCARAB, 0.20f);
+		mob("zombie", SoulPower.BLOOD_MOON, 0.01f);
+		mob("husk", SoulPower.SUN_SHARD, 0.04f);
+		mob("iron_golem", SoulPower.IRON_SKIN, 0.05f);
+		mob("wither_skeleton", SoulPower.GIANT_BONE, 0.05f);
+		mob("horse", SoulPower.SWIFT_HOOF, 0.10f);
+		mob("endermite", SoulPower.ENDER_SHARD, 0.10f);
+		chest("abandoned_mineshaft", SoulPower.MAGNET_STONE, 0.10f);
+		mob("polar_bear", SoulPower.BEAR_CLAW, 0.15f);
+		mob("silverfish", SoulPower.MANTIS_BLADE, 0.03f);
+		mob("turtle", SoulPower.TURTLE_PLATE, 0.10f);
+		mob("skeleton", SoulPower.HUNTER_MARK, 0.02f);
+		mob("vindicator", SoulPower.EXECUTIONER_AXE, 0.06f);
+		chest("end_city_treasure", SoulPower.SHIELD_CRYSTAL, 0.15f);
+		mob("phantom", SoulPower.OWL_FEATHER, 0.06f);
+		mob("armadillo", SoulPower.MOLE_CLAW, 0.10f);
+		mob("ravager", SoulPower.COURAGE_BANNER, 0.15f);
+		mob("evoker", SoulPower.ESSENCE_SIPHON, 0.25f);
+		mob("bee", SoulPower.LIFEBLOOM, 0.05f);
+		mob("creeper", SoulPower.OBSIDIAN_SHARD, 0.02f);
+		mob("magma_cube", SoulPower.QUAKE_STONE, 0.04f);
+		chest("pillager_outpost", SoulPower.THUNDER_DRUM, 0.15f);
+		chest("village/village_temple", SoulPower.PURITY_CHARM, 0.20f);
+		mob("panda", SoulPower.CALM_LOTUS, 0.10f);
+		mob("parrot", SoulPower.CROW_FEATHER, 0.10f);
+		mob("snow_golem", SoulPower.FROST_STEP, 0.08f);
 	}
 
 	private static void mob(String entity, SoulPower power, float chance) {

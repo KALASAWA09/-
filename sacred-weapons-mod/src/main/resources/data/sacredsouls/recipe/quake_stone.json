@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:tnt",
+    "B": "minecraft:cobbled_deepslate",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:quake_stone",
+    "count": 1
+  }
+}

@@ -85,7 +85,9 @@ public final class SoulManager {
 	}
 
 	public static int essenceGain(SoulData data, int base) {
-		return data.soulTitle() == SoulTitle.DEVOURER ? base + base / 2 : base;
+		int gain = data.soulTitle() == SoulTitle.DEVOURER ? base + base / 2 : base;
+		// ไส้กรองแก่น: +1/+2/+3 on every gain.
+		return data.isSoulless() ? gain : gain + data.level(SoulPower.ESSENCE_SIPHON);
 	}
 
 	public static void upgrade(ServerPlayer player, int slot) {

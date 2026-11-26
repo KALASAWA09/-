@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:shield",
+    "B": "minecraft:amethyst_shard",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:shield_crystal",
+    "count": 1
+  }
+}

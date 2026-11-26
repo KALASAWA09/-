@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:phantom_membrane",
+    "B": "minecraft:feather",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:owl_feather",
+    "count": 1
+  }
+}

@@ -4,7 +4,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 
 /**
- * The 20 soul items. Each one gives one passive power when devoured.
+ * The 50 soul items. Each one gives one passive power when devoured.
  * Numbers live in {@link PowerHandler}; the text lives in the lang files.
  */
 public enum SoulPower {
@@ -27,7 +27,37 @@ public enum SoulPower {
 	GRAVITY_ORB("gravity_orb", 0xA35BD6),
 	MINER_CORE("miner_core", 0x4FE3C1),
 	WILD_FLUTE("wild_flute", 0xC9A66B),
-	THIEF_MASK("thief_mask", 0x2B2B2B);
+	THIEF_MASK("thief_mask", 0x2B2B2B),
+	VAMPIRE_TOOTH("vampire_tooth", 0xB0213A),
+	THORN_VINE("thorn_vine", 0x3E8E3A),
+	STORM_ROD("storm_rod", 0x6C7BFF),
+	TIDE_PEARL("tide_pearl", 0x3FB6C9),
+	GOLDEN_SCARAB("golden_scarab", 0xE8B32E),
+	BLOOD_MOON("blood_moon", 0xC0392B),
+	SUN_SHARD("sun_shard", 0xFFD84A),
+	IRON_SKIN("iron_skin", 0xB8B8C0),
+	GIANT_BONE("giant_bone", 0xEDE6D3),
+	SWIFT_HOOF("swift_hoof", 0x8B5A2B),
+	ENDER_SHARD("ender_shard", 0x2FB58F),
+	MAGNET_STONE("magnet_stone", 0xD04848),
+	BEAR_CLAW("bear_claw", 0xF2F2F2),
+	MANTIS_BLADE("mantis_blade", 0x8FD14F),
+	TURTLE_PLATE("turtle_plate", 0x4E9A56),
+	HUNTER_MARK("hunter_mark", 0xE0642D),
+	EXECUTIONER_AXE("executioner_axe", 0x5B5B66),
+	SHIELD_CRYSTAL("shield_crystal", 0x7FC8FF),
+	OWL_FEATHER("owl_feather", 0xA88B6A),
+	MOLE_CLAW("mole_claw", 0x6A5040),
+	COURAGE_BANNER("courage_banner", 0xD43F3F),
+	ESSENCE_SIPHON("essence_siphon", 0x9B59D0),
+	LIFEBLOOM("lifebloom", 0xF07FB0),
+	OBSIDIAN_SHARD("obsidian_shard", 0x3A2552),
+	QUAKE_STONE("quake_stone", 0x9C7A4E),
+	THUNDER_DRUM("thunder_drum", 0xC08A3E),
+	PURITY_CHARM("purity_charm", 0xF5F5FF),
+	CALM_LOTUS("calm_lotus", 0xE9A3D9),
+	CROW_FEATHER("crow_feather", 0x2A2A3A),
+	FROST_STEP("frost_step", 0xBFEFFF);
 
 	public final String id;
 	public final int color;
