@@ -31,6 +31,7 @@ def bone():
     return g
 import colorsys
 PLUM=(42,30,58)
+GLOSS={'serpent_eye','mirror_shadow','time_crystal','haunted_compass','eternal_ice','chameleon_scale','gravity_orb','tide_pearl','ender_shard','essence_siphon','soul_flame','cleansing_water','shield_crystal','golden_scarab','spirit_bell','sun_shard','obsidian_shard','ember_coal','lifebloom','purity_charm'}
 LIGHT=(255,244,214)
 def mix(a,b,t): return tuple(int(a[i]*(1-t)+b[i]*t) for i in range(3))
 def mute(c):
@@ -50,18 +51,42 @@ def image(name):
             if ch in "wW": hl.add((x,y))
     filled=lambda x,y: 0<=x<16 and 0<=y<16 and g[y][x] is not None
     img=Image.new("RGBA",(16,16),(0,0,0,0))
+    # distance to the nearest empty pixel
+    INF=99; dist=[[0 if not g[y][x] else INF for x in range(16)] for y in range(16)]
+    for _ in range(16):
+        for y in range(16):
+            for x in range(16):
+                if dist[y][x]:
+                    n=[dist[y+dy][x+dx] if 0<=x+dx<16 and 0<=y+dy<16 else 0 for dx,dy in ((1,0),(-1,0),(0,1),(0,-1))]
+                    dist[y][x]=min(dist[y][x],min(n)+1)
     for y in range(16):
         for x in range(16):
             if not g[y][x]: continue
             c=mute(g[y][x])
-            if (x,y) not in hl:
-                top=not filled(x,y-1) or not filled(x-1,y)
-                bot=not filled(x,y+1) or not filled(x+1,y)
-                far_bot = not filled(x,y+2) or not filled(x+2,y)
-                if top and not bot: c=mix(c,LIGHT,0.32)
-                elif bot and not top: c=mix(c,PLUM,0.36)
-                elif not (top or bot) and far_bot: c=mix(c,PLUM,0.14)
+            if (x,y) not in hl and sum(g[y][x][:3])>150:
+                lit=sum(1 for k in (1,2) for dx,dy in ((0,-k),(-k,0),(-k,-k)) if not filled(x+dx,y+dy))
+                dark=sum(1 for k in (1,2) for dx,dy in ((0,k),(k,0),(k,k)) if not filled(x+dx,y+dy))
+                v=lit-dark
+                if v>=3: c=mix(c,LIGHT,0.42)
+                elif v>=1: c=mix(c,LIGHT,0.2)
+                elif v<=-3: c=mix(c,PLUM,0.45)
+                elif v<=-1: c=mix(c,PLUM,0.24)
+                elif dist[y][x]>=3: c=mix(c,LIGHT,0.06)
             img.putpixel((x,y),c+(255,))
+    if name in GLOSS:
+        best=None
+        for y in range(16):
+            for x in range(16):
+                if g[y][x] and dist[y][x]>=2 and (best is None or x+y<best[0]+best[1]): best=(x,y)
+        if best:
+            x,y=best
+            for px,py,t in ((x,y,0.95),(x+1,y,0.8),(x,y+1,0.8),(x+1,y+1,0.45)):
+                if filled(px,py): img.putpixel((px,py),mix(img.getpixel((px,py))[:3],(255,255,250),t)+(255,))
+            # small second glint lower right
+            cand=[(xx,yy) for yy in range(16) for xx in range(16) if g[yy][xx] and dist[yy][xx]>=2]
+            if cand:
+                xx,yy=max(cand,key=lambda p:p[0]+p[1])
+                img.putpixel((xx-1,yy-1) if filled(xx-1,yy-1) else (xx,yy),mix(img.getpixel((xx,yy))[:3],(255,255,250),0.45)+(255,))
     for y in range(16):
         for x in range(16):
             if g[y][x]: continue
