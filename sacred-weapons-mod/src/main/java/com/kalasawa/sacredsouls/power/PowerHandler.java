@@ -14,6 +14,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -309,20 +310,20 @@ public final class PowerHandler {
 			Effects.keep(player, "night_vision", 0, 260);
 		}
 
-		StringBuilder bar = new StringBuilder();
+		MutableComponent bar = Component.empty();
 		int compass = level(player, SoulPower.HAUNTED_COMPASS);
 		if (compass > 0) {
 			bar.append(nearestPlayerText(player, level, pick(compass, 200, 400, 800)));
 		}
 		int miner = level(player, SoulPower.MINER_CORE);
 		if (miner > 0) {
-			if (!bar.isEmpty()) {
+			if (compass > 0) {
 				bar.append("   ");
 			}
 			bar.append(nearestOreText(player, level, pick(miner, 6, 8, 10)));
 		}
-		if (!bar.isEmpty()) {
-			player.displayClientMessage(Component.literal(bar.toString()).withStyle(ChatFormatting.LIGHT_PURPLE), true);
+		if (compass > 0 || miner > 0) {
+			player.displayClientMessage(bar.withStyle(ChatFormatting.LIGHT_PURPLE), true);
 		}
 
 		if (time % 100 == 0) {
@@ -361,7 +362,7 @@ public final class PowerHandler {
 		return arrows[index];
 	}
 
-	private static String nearestPlayerText(ServerPlayer player, ServerLevel level, double range) {
+	private static Component nearestPlayerText(ServerPlayer player, ServerLevel level, double range) {
 		ServerPlayer best = null;
 		double bestDist = range * range;
 		for (ServerPlayer other : level.players()) {
@@ -374,20 +375,20 @@ public final class PowerHandler {
 			}
 		}
 		if (best == null) {
-			return "☠ ไม่มีศัตรูใกล้";
+			return SoulManager.msg("compass_none");
 		}
-		return "☠ " + arrow(player, best.getX(), best.getZ()) + " " + (int) Math.sqrt(bestDist) + " บล็อก";
+		return SoulManager.msg("compass", arrow(player, best.getX(), best.getZ()), (int) Math.sqrt(bestDist));
 	}
 
-	private static String nearestOreText(ServerPlayer player, ServerLevel level, int radius) {
+	private static Component nearestOreText(ServerPlayer player, ServerLevel level, int radius) {
 		BlockPos center = player.blockPosition();
 		BlockPos best = null;
 		String name = "";
 		double bestDist = Double.MAX_VALUE;
 		for (BlockPos pos : BlockPos.betweenClosed(center.offset(-radius, -radius, -radius), center.offset(radius, radius, radius))) {
 			BlockState state = level.getBlockState(pos);
-			String ore = state.is(BlockTags.DIAMOND_ORES) ? "เพชร" : state.is(Blocks.ANCIENT_DEBRIS) ? "เศษโบราณ"
-					: state.is(BlockTags.EMERALD_ORES) ? "มรกต" : state.is(BlockTags.GOLD_ORES) ? "ทอง" : null;
+			String ore = state.is(BlockTags.DIAMOND_ORES) ? "diamond" : state.is(Blocks.ANCIENT_DEBRIS) ? "debris"
+					: state.is(BlockTags.EMERALD_ORES) ? "emerald" : state.is(BlockTags.GOLD_ORES) ? "gold" : null;
 			if (ore != null) {
 				double dist = pos.distSqr(center);
 				if (dist < bestDist) {
@@ -398,11 +399,11 @@ public final class PowerHandler {
 			}
 		}
 		if (best == null) {
-			return "⛏ ไม่มีแร่หายากใกล้";
+			return SoulManager.msg("ore_none");
 		}
 		int dy = best.getY() - center.getY();
-		String vertical = dy > 0 ? " ขึ้น " + dy : dy < 0 ? " ลง " + (-dy) : "";
-		return "⛏ " + name + " " + arrow(player, best.getX() + 0.5, best.getZ() + 0.5) + " " + (int) Math.sqrt(bestDist) + " บล็อก" + vertical;
+		Component vertical = dy > 0 ? SoulManager.msg("ore_up", dy) : dy < 0 ? SoulManager.msg("ore_down", -dy) : Component.empty();
+		return SoulManager.msg("ore", SoulManager.msg("ore_" + name), arrow(player, best.getX() + 0.5, best.getZ() + 0.5), (int) Math.sqrt(bestDist), vertical);
 	}
 
 	private void applyTitleBuffs(ServerPlayer player, ServerLevel level) {
@@ -533,7 +534,7 @@ public final class PowerHandler {
 		}
 		if (title(player) == SoulTitle.BORDERLESS && source.getEntity() != null && roll(player, data, 0.15f)) {
 			level.sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY() + 0.5, player.getZ(), 8, 0.3, 0.3, 0.3, 0.02);
-			player.displayClientMessage(Component.literal("หลบ!").withStyle(ChatFormatting.WHITE), true);
+			player.displayClientMessage(SoulManager.msg("dodge").withStyle(ChatFormatting.WHITE), true);
 			return false;
 		}
 		return true;
@@ -583,7 +584,7 @@ public final class PowerHandler {
 				player.setHealth(Math.max(health, Math.min(past.health(), player.getMaxHealth())));
 				player.resetFallDistance();
 				level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0f, 0.5f);
-				player.displayClientMessage(Component.literal("ผลึกย้อนกาลพาคุณย้อนกลับไป 4 วินาที").withStyle(ChatFormatting.AQUA), true);
+				player.displayClientMessage(SoulManager.msg("rewind").withStyle(ChatFormatting.AQUA), true);
 			}
 		}
 
@@ -599,7 +600,7 @@ public final class PowerHandler {
 				}
 				wolf.setPos(player.getX() + (i - count / 2.0), player.getY(), player.getZ() + 1.0);
 				wolf.tame(player);
-				wolf.setCustomName(Component.literal("หมาป่าวิญญาณ").withStyle(ChatFormatting.AQUA));
+				wolf.setCustomName(SoulManager.msg("spirit_wolf").withStyle(ChatFormatting.AQUA));
 				if (attacker != null) {
 					wolf.setTarget(attacker);
 				}
@@ -690,7 +691,7 @@ public final class PowerHandler {
 						targetState.disabledPower = targetData.slots.get(target.getRandom().nextInt(targetData.slots.size()));
 						targetState.disabledUntil = level.getGameTime() + 100;
 						SoulPower off = SoulPower.byId(targetState.disabledPower);
-						target.displayClientMessage(Component.literal("พลัง " + (off == null ? "" : off.thaiName) + " ถูกปิด 5 วิ").withStyle(ChatFormatting.RED), true);
+						target.displayClientMessage(SoulManager.msg("power_disabled", off == null ? Component.empty() : off.displayName()).withStyle(ChatFormatting.RED), true);
 					}
 				}
 			}
@@ -701,7 +702,7 @@ public final class PowerHandler {
 						stealCooldowns.put(key, level.getGameTime() + 12000);
 						SoulManager.changeEnergy(target, -1);
 						SoulManager.changeEnergy(attacker, 1);
-						attacker.displayClientMessage(Component.literal("ขโมยพลังวิญญาณ 1 ดวงไฟจาก " + target.getName().getString()).withStyle(ChatFormatting.DARK_PURPLE), true);
+						attacker.displayClientMessage(SoulManager.msg("energy_stolen", target.getName()).withStyle(ChatFormatting.DARK_PURPLE), true);
 					}
 				}
 			}
@@ -729,7 +730,7 @@ public final class PowerHandler {
 		Effects.give(player, "absorption", 1, 100);
 		Effects.give(player, "fire_resistance", 0, 800);
 		player.level().broadcastEntityEvent(player, (byte) 35);
-		player.displayClientMessage(Component.literal("ผู้พิทักษ์ช่วยให้รอดจากความตาย (ใช้ได้อีกครั้งใน 20 นาที)").withStyle(ChatFormatting.GOLD), false);
+		player.displayClientMessage(SoulManager.msg("guardian_saved").withStyle(ChatFormatting.GOLD), false);
 		return false;
 	}
 

@@ -57,8 +57,17 @@ public class SacredSoulsClient implements ClientModInitializer {
 
 		ItemTooltipCallback.EVENT.register((stack, context, type, lines) -> {
 			if (stack.getItem() instanceof SoulItem soulItem) {
-				lines.add(Component.literal(soulItem.power.description).withStyle(ChatFormatting.GRAY));
-				lines.add(Component.literal("คลิกขวาค้างเพื่อให้วิญญาณกลืน").withStyle(ChatFormatting.DARK_PURPLE));
+				SoulPower power = soulItem.power;
+				SoulData data = localSoul();
+				int owned = data.slots.indexOf(power.id);
+				int current = owned >= 0 ? data.levels.get(owned) : 0;
+				lines.add(Component.translatable("tooltip.sacredsouls.passive").withStyle(ChatFormatting.DARK_PURPLE));
+				lines.add(power.summary().withStyle(ChatFormatting.WHITE));
+				for (int level = 1; level <= SoulData.MAX_LEVEL; level++) {
+					ChatFormatting color = level == current ? ChatFormatting.GREEN : ChatFormatting.GRAY;
+					lines.add(Component.translatable("tooltip.sacredsouls.level_line", level, power.effect(level)).withStyle(color));
+				}
+				lines.add(Component.translatable(owned >= 0 ? "tooltip.sacredsouls.owned" : "tooltip.sacredsouls.devour").withStyle(ChatFormatting.LIGHT_PURPLE));
 			}
 		});
 	}

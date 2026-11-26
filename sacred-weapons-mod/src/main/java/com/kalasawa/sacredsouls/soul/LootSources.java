@@ -67,11 +67,6 @@ public final class LootSources {
 	private LootSources() {
 	}
 
-	public static String summary() {
-		return "แมงมุมถ้ำ, Breeze, เอนเดอร์แมน, Stray, Blaze, แพะ, ค้างคาว, กบ, Pillager, Guardian, แมงมุม, Shulker, Witch, "
-				+ "หีบ Ancient City, หีบซากเรือ, ขุดแร่ใต้ y=0, ขุดเพชร, ตัดต้นไม้ใหญ่, ชนะ Raid, ผสมพันธุ์หมาป่า หรือคราฟต์เองด้วยทรายวิญญาณ";
-	}
-
 	public static void init() {
 		LootTableEvents.MODIFY.register((key, tableBuilder, source, registries) -> {
 			Drop drop = TABLE_DROPS.get(key);

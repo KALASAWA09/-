@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -34,11 +35,11 @@ public final class TitleManager {
 		server.overworld().setAttached(ModAttachments.TITLE_HOLDERS, Map.copyOf(holders));
 	}
 
-	private static void announce(MinecraftServer server, String text) {
-		server.getPlayerList().broadcastSystemMessage(Component.literal(text).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), false);
+	private static void announce(MinecraftServer server, MutableComponent text) {
+		server.getPlayerList().broadcastSystemMessage(text.withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), false);
 	}
 
-	public static void grant(ServerPlayer player, SoulTitle title, String how) {
+	public static void grant(ServerPlayer player, SoulTitle title, ServerPlayer takenFrom) {
 		MinecraftServer server = SoulManager.server(player);
 		Map<String, String> holders = new HashMap<>(holders(server));
 		SoulData data = SoulManager.get(player).copy();
@@ -55,8 +56,10 @@ public final class TitleManager {
 		SoulManager.set(player, data);
 		ServerLevel level = (ServerLevel) player.level();
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundSource.PLAYERS, 1.0f, 1.0f);
-		announce(server, player.getName().getString() + " " + how + "ฉายา \"" + title.thaiName + "\"");
-		player.displayClientMessage(Component.literal("บัฟ: " + title.buff + " | " + title.proc).withStyle(ChatFormatting.YELLOW), false);
+		announce(server, takenFrom == null
+				? SoulManager.msg("title_earned", player.getName(), title.displayName())
+				: SoulManager.msg("title_taken", player.getName(), title.displayName(), takenFrom.getName()));
+		player.displayClientMessage(SoulManager.msg("title_bonus", title.buff(), title.proc()).withStyle(ChatFormatting.YELLOW), false);
 		checkConditions(player);
 	}
 
@@ -73,7 +76,7 @@ public final class TitleManager {
 		data.title = "";
 		SoulManager.set(player, data);
 		if (announce) {
-			announce(server, "ฉายา \"" + title.thaiName + "\" ว่างแล้ว ใครทำเงื่อนไขครบก่อนได้ไป");
+			announce(server, SoulManager.msg("title_free", title.displayName(), title.condition()));
 		}
 	}
 
@@ -92,9 +95,9 @@ public final class TitleManager {
 		setHolders(server, holders);
 		SoulTitle killerOld = SoulManager.get(killer).soulTitle();
 		if (killerOld != null && killerOld != title) {
-			announce(server, killer.getName().getString() + " ทิ้งฉายา \"" + killerOld.thaiName + "\" ให้ว่าง");
+			announce(server, SoulManager.msg("title_dropped", killer.getName(), killerOld.displayName()));
 		}
-		grant(killer, title, "ชิงมาจาก " + victim.getName().getString() + " ได้");
+		grant(killer, title, victim);
 	}
 
 	private static boolean met(ServerPlayer player, SoulData data, SoulTitle title) {
@@ -128,7 +131,7 @@ public final class TitleManager {
 		Map<String, String> holders = holders(SoulManager.server(player));
 		for (SoulTitle title : SoulTitle.values()) {
 			if (!holders.containsKey(title.id) && met(player, data, title)) {
-				grant(player, title, "ได้รับ");
+				grant(player, title, null);
 				return;
 			}
 		}

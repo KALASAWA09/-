@@ -36,6 +36,11 @@ public final class SoulManager {
 		player.setAttached(ModAttachments.SOUL, data);
 	}
 
+	/** A translatable chat message from lang key msg.sacredsouls.<key>. */
+	public static MutableComponent msg(String key, Object... args) {
+		return Component.translatable("msg.sacredsouls." + key, args);
+	}
+
 	private static void say(ServerPlayer player, Component message) {
 		player.displayClientMessage(message, false);
 	}
@@ -50,7 +55,7 @@ public final class SoulManager {
 	public static boolean devour(ServerPlayer player, SoulPower power) {
 		SoulData data = get(player).copy();
 		if (data.isSoulless()) {
-			say(player, Component.literal("วิญญาณของคุณหนีไปแล้ว ใช้ธูปเรียกวิญญาณก่อน").withStyle(ChatFormatting.RED));
+			say(player, msg("soulless_cant_devour").withStyle(ChatFormatting.RED));
 			return false;
 		}
 		int index = data.slots.indexOf(power.id);
@@ -62,7 +67,7 @@ public final class SoulManager {
 			data.slots.add(power.id);
 			data.levels.add(1);
 		} else {
-			say(player, Component.literal("ช่องกลืนกินเต็มแล้ว ใช้น้ำชำระวิญญาณคายชิ้นเก่าออกก่อน (กด K)").withStyle(ChatFormatting.RED));
+			say(player, msg("slots_full").withStyle(ChatFormatting.RED));
 			return false;
 		}
 		if (!data.devoured.contains(power.id)) {
@@ -71,9 +76,9 @@ public final class SoulManager {
 		set(player, data);
 		effects(player);
 		if (gain > 0) {
-			say(player, Component.literal("วิญญาณกลืน " + power.thaiName + " ซ้ำ ได้แก่นวิญญาณ +" + gain).withStyle(ChatFormatting.AQUA));
+			say(player, msg("devour_again", power.displayName(), gain).withStyle(ChatFormatting.AQUA));
 		} else {
-			say(player, Component.literal("วิญญาณกลืน " + power.thaiName + " ได้พลัง: " + power.description).withStyle(ChatFormatting.AQUA));
+			say(player, msg("devour_new", power.displayName(), power.summary()).withStyle(ChatFormatting.AQUA));
 		}
 		TitleManager.checkConditions(player);
 		return true;
@@ -91,12 +96,12 @@ public final class SoulManager {
 		}
 		int level = data.levels.get(slot);
 		if (level >= SoulData.MAX_LEVEL) {
-			say(player, Component.literal(power.thaiName + " อยู่ขั้นสูงสุดแล้ว").withStyle(ChatFormatting.GRAY));
+			say(player, msg("max_level", power.displayName()).withStyle(ChatFormatting.GRAY));
 			return;
 		}
 		int cost = SoulData.upgradeCost(level);
 		if (data.essence < cost) {
-			say(player, Component.literal("แก่นวิญญาณไม่พอ ต้องใช้ " + cost + " มีอยู่ " + data.essence).withStyle(ChatFormatting.RED));
+			say(player, msg("not_enough_essence", cost, data.essence).withStyle(ChatFormatting.RED));
 			return;
 		}
 		data.essence -= cost;
@@ -105,7 +110,7 @@ public final class SoulManager {
 		ServerLevel serverLevel = (ServerLevel) player.level();
 		serverLevel.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ENCHANTMENT_TABLE_USE, SoundSource.PLAYERS, 1.0f, 1.0f);
 		serverLevel.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, player.getX(), player.getY() + 1.0, player.getZ(), 30, 0.5, 0.8, 0.5, 0.03);
-		say(player, Component.literal(power.thaiName + " ขึ้นเป็นขั้น " + (level + 1)).withStyle(ChatFormatting.GOLD));
+		say(player, msg("upgraded", power.displayName(), level + 1, power.effect(level + 1)).withStyle(ChatFormatting.GOLD));
 	}
 
 	public static void eject(ServerPlayer player, int slot) {
@@ -122,7 +127,7 @@ public final class SoulManager {
 			}
 		}
 		if (waterSlot < 0 && !player.isCreative()) {
-			say(player, Component.literal("ต้องมีน้ำชำระวิญญาณในกระเป๋าเพื่อคายไอเทมออก").withStyle(ChatFormatting.RED));
+			say(player, msg("need_water").withStyle(ChatFormatting.RED));
 			return;
 		}
 		if (waterSlot >= 0) {
@@ -132,30 +137,30 @@ public final class SoulManager {
 		data.levels.remove(slot);
 		set(player, data);
 		SacredSouls.POWERS.onPowerRemoved(player, power);
-		say(player, Component.literal("วิญญาณคาย " + power.thaiName + " ออกแล้ว ช่องนี้ว่างให้กลืนชิ้นใหม่").withStyle(ChatFormatting.YELLOW));
+		say(player, msg("ejected", power.displayName()).withStyle(ChatFormatting.YELLOW));
 	}
 
 	public static boolean useSoulFlame(ServerPlayer player) {
 		SoulData data = get(player).copy();
 		if (data.isSoulless()) {
-			say(player, Component.literal("ร่างไร้วิญญาณใช้ดวงไฟไม่ได้ ต้องใช้ธูปเรียกวิญญาณก่อน").withStyle(ChatFormatting.RED));
+			say(player, msg("flame_soulless").withStyle(ChatFormatting.RED));
 			return false;
 		}
 		if (data.energy >= SoulData.MAX_ENERGY) {
-			say(player, Component.literal("พลังวิญญาณเต็ม 10 แล้ว").withStyle(ChatFormatting.GRAY));
+			say(player, msg("energy_full").withStyle(ChatFormatting.GRAY));
 			return false;
 		}
 		data.energy++;
 		set(player, data);
 		effects(player);
-		say(player, Component.literal("พลังวิญญาณ " + data.energy + "/10").withStyle(ChatFormatting.AQUA));
+		say(player, msg("energy", data.energy).withStyle(ChatFormatting.AQUA));
 		return true;
 	}
 
 	public static boolean useIncense(ServerPlayer player) {
 		SoulData data = get(player).copy();
 		if (!data.isSoulless()) {
-			say(player, Component.literal("วิญญาณของคุณยังอยู่ ธูปใช้กับร่างไร้วิญญาณเท่านั้น").withStyle(ChatFormatting.GRAY));
+			say(player, msg("incense_not_needed").withStyle(ChatFormatting.GRAY));
 			return false;
 		}
 		data.energy = 3;
@@ -163,7 +168,7 @@ public final class SoulManager {
 		updateSoullessHealth(player, data);
 		effects(player);
 		server(player).getPlayerList().broadcastSystemMessage(
-				Component.literal(player.getName().getString() + " เรียกวิญญาณกลับคืนร่างแล้ว").withStyle(ChatFormatting.LIGHT_PURPLE), false);
+				msg("soul_returned", player.getName()).withStyle(ChatFormatting.LIGHT_PURPLE), false);
 		return true;
 	}
 
@@ -176,7 +181,7 @@ public final class SoulManager {
 		if (!wasSoulless && data.isSoulless()) {
 			TitleManager.releaseTitle(server(player), player, true);
 			server(player).getPlayerList().broadcastSystemMessage(
-					Component.literal("วิญญาณของ " + player.getName().getString() + " หนีออกจากร่าง กลายเป็นร่างไร้วิญญาณ").withStyle(ChatFormatting.DARK_RED), false);
+					msg("became_soulless", player.getName()).withStyle(ChatFormatting.DARK_RED), false);
 		}
 		updateSoullessHealth(player, get(player));
 	}
@@ -228,36 +233,36 @@ public final class SoulManager {
 
 	public static void showCodex(ServerPlayer viewer) {
 		MinecraftServer server = server(viewer);
-		say(viewer, Component.literal("=== คัมภีร์วิญญาณ ===").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD));
+		say(viewer, msg("codex_header").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD));
 		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
 			SoulData data = get(player);
 			MutableComponent line = Component.literal(player.getName().getString()).withStyle(ChatFormatting.WHITE);
-			line.append(Component.literal(" | พลัง " + data.energy + "/10").withStyle(ChatFormatting.AQUA));
+			line.append(Component.literal(" | ").append(msg("energy", data.energy)).withStyle(ChatFormatting.AQUA));
 			SoulTitle title = data.soulTitle();
 			if (title != null) {
-				line.append(Component.literal(" | " + title.thaiName).withStyle(ChatFormatting.GOLD));
+				line.append(Component.literal(" | ").append(title.displayName()).withStyle(ChatFormatting.GOLD));
 			}
-			StringBuilder powers = new StringBuilder();
+			MutableComponent powers = Component.empty();
 			for (int i = 0; i < data.slots.size(); i++) {
 				SoulPower power = data.powerAt(i);
 				if (power != null) {
-					powers.append(i == 0 ? " | " : ", ").append(power.thaiName).append(" ").append(data.levels.get(i));
+					powers.append(i == 0 ? " | " : ", ").append(power.displayName()).append(" " + data.levels.get(i));
 				}
 			}
-			line.append(Component.literal(powers.toString()).withStyle(ChatFormatting.GRAY));
+			line.append(powers.withStyle(ChatFormatting.GRAY));
 			say(viewer, line);
 		}
 		Map<String, String> holders = TitleManager.holders(server);
-		MutableComponent titles = Component.literal("ฉายาที่ยังว่าง: ").withStyle(ChatFormatting.GOLD);
+		MutableComponent titles = msg("codex_free_titles").withStyle(ChatFormatting.GOLD);
 		boolean any = false;
 		for (SoulTitle title : SoulTitle.values()) {
 			if (!holders.containsKey(title.id)) {
-				titles.append(Component.literal((any ? ", " : "") + title.thaiName).withStyle(ChatFormatting.YELLOW));
+				titles.append(Component.literal(any ? ", " : "").append(title.displayName()).withStyle(ChatFormatting.YELLOW));
 				any = true;
 			}
 		}
-		say(viewer, any ? titles : Component.literal("ฉายาทั้ง 9 มีเจ้าของหมดแล้ว").withStyle(ChatFormatting.GOLD));
-		say(viewer, Component.literal("ไอเทมวิญญาณหาได้จาก: " + LootSources.summary()).withStyle(ChatFormatting.DARK_AQUA));
+		say(viewer, any ? titles : msg("codex_no_free_titles").withStyle(ChatFormatting.GOLD));
+		say(viewer, msg("codex_sources").withStyle(ChatFormatting.DARK_AQUA));
 	}
 
 	public static MinecraftServer server(ServerPlayer player) {
