@@ -995,7 +995,7 @@ public final class PowerHandler {
 
 		int storm = level(attacker, SoulPower.STORM_ROD);
 		if (storm > 0 && level.isRainingAt(attacker.blockPosition().above()) && ready(attacker, "storm_rod")
-				&& roll(attacker, data, pick(storm, 0.05f, 0.08f, 0.12f))) {
+				&& roll(attacker, data, pick(storm, 0.15f, 0.20f, 0.25f))) {
 			cooldown(attacker, "storm_rod", 60);
 			LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level, EntitySpawnReason.TRIGGERED);
 			if (bolt != null) {
