@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "minecraft:potion",
+    "minecraft:ghast_tear",
+    "minecraft:soul_sand",
+    "minecraft:soul_sand",
+    "minecraft:soul_sand",
+    "minecraft:soul_sand"
+  ],
+  "result": {
+    "id": "sacredsouls:cleansing_water",
+    "count": 1
+  }
+}

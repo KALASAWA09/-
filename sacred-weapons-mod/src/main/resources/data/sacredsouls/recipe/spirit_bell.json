@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:gold_ingot",
+    "B": "minecraft:emerald",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:spirit_bell",
+    "count": 1
+  }
+}

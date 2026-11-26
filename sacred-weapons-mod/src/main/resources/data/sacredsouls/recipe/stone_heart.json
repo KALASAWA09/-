@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:deepslate",
+    "B": "minecraft:iron_ingot",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:stone_heart",
+    "count": 1
+  }
+}

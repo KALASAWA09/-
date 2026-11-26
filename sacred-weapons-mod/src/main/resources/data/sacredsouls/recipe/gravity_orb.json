@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:shulker_shell",
+    "B": "minecraft:chorus_fruit",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:gravity_orb",
+    "count": 1
+  }
+}

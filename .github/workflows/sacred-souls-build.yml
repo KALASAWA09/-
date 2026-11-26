@@ -1,0 +1,29 @@
+name: Build Sacred Souls mod
+on:
+  push:
+    paths:
+      - 'sacred-weapons-mod/**'
+      - '.github/workflows/sacred-souls-build.yml'
+  pull_request:
+    paths:
+      - 'sacred-weapons-mod/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: sacred-weapons-mod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'microsoft'
+      - run: chmod +x ./gradlew
+      - run: ./gradlew build --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sacred-souls-jar
+          path: sacred-weapons-mod/build/libs/

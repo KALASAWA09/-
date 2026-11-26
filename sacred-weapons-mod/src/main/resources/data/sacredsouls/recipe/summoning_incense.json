@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "#sacredsouls:soul_items",
+    "minecraft:stick"
+  ],
+  "result": {
+    "id": "sacredsouls:summoning_incense",
+    "count": 1
+  }
+}
