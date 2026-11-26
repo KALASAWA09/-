@@ -1,6 +1,8 @@
 package com.kalasawa.sacredsouls.item;
 
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
@@ -36,6 +38,15 @@ public class SoulItem extends Item {
 	@Override
 	public ItemUseAnimation getUseAnimation(ItemStack stack) {
 		return ItemUseAnimation.EAT;
+	}
+
+	/** Crunching sound every few ticks while the soul is eating. */
+	@Override
+	public void onUseTick(Level level, LivingEntity entity, ItemStack stack, int remaining) {
+		if (!level.isClientSide() && remaining % 4 == 0) {
+			level.playSound(null, entity.getX(), entity.getY(), entity.getZ(), SoundEvents.GENERIC_EAT, SoundSource.PLAYERS,
+					0.5f + 0.5f * level.getRandom().nextFloat(), 0.8f + 0.4f * level.getRandom().nextFloat());
+		}
 	}
 
 	@Override

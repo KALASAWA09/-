@@ -75,6 +75,7 @@ public final class SoulManager {
 		}
 		set(player, data);
 		effects(player);
+		afterDevour(player);
 		if (gain > 0) {
 			say(player, msg("devour_again", power.displayName(), gain).withStyle(ChatFormatting.AQUA));
 		} else {
@@ -82,6 +83,15 @@ public final class SoulManager {
 		}
 		TitleManager.checkConditions(player);
 		return true;
+	}
+
+	/** Swallow, then 2 seconds of darkness with a heartbeat. */
+	private static void afterDevour(ServerPlayer player) {
+		ServerLevel level = (ServerLevel) player.level();
+		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_BURP, SoundSource.PLAYERS, 0.6f, 0.7f);
+		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.WARDEN_HEARTBEAT, SoundSource.PLAYERS, 2.0f, 1.0f);
+		Effects.give(player, "darkness", 0, 40);
+		Effects.give(player, "blindness", 0, 40);
 	}
 
 	public static int essenceGain(SoulData data, int base) {
