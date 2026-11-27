@@ -432,5 +432,6 @@
   "skill.sacredsouls.lightning": "พิโรธอัสนี",
   "skill.sacredsouls.ice": "คุกน้ำแข็ง",
   "skill.sacredsouls.blood": "พันธสัญญาโลหิต",
-  "skill.sacredsouls.king": "พิพากษาแปดธาตุ"
+  "skill.sacredsouls.king": "พิพากษาแปดธาตุ",
+  "msg.sacredsouls.cmd.cooldown_reset": "รีเซ็ตคูลดาวน์สกิลทั้งหมดของ %s แล้ว"
 }

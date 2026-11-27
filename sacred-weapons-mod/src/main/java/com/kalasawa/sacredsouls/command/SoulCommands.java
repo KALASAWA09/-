@@ -66,7 +66,18 @@ public final class SoulCommands {
 						.then(Commands.literal("add")
 								.then(Commands.argument("player", EntityArgument.player())
 										.then(Commands.argument("amount", IntegerArgumentType.integer())
-												.executes(SoulCommands::addEssence))))));
+												.executes(SoulCommands::addEssence)))))
+				.then(Commands.literal("cooldown")
+						.then(Commands.literal("reset")
+								.executes(ctx -> resetCooldowns(ctx.getSource(), ctx.getSource().getPlayerOrException()))
+								.then(Commands.argument("player", EntityArgument.player())
+										.executes(ctx -> resetCooldowns(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))));
+	}
+
+	private static int resetCooldowns(CommandSourceStack source, ServerPlayer player) {
+		com.kalasawa.sacredsouls.skill.SkillHandler.resetCooldowns(player);
+		source.sendSuccess(() -> msg("cooldown_reset", player.getName()), true);
+		return 1;
 	}
 
 	private static MutableComponent msg(String key, Object... args) {

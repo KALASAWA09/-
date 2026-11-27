@@ -153,6 +153,14 @@ public final class SkillHandler {
 		}
 	}
 
+	/** Makes every skill ready at once, the ultimate included. For admins testing skills. */
+	public static void resetCooldowns(ServerPlayer player) {
+		READY.remove(player.getUUID());
+		SHARED_READY.remove(player.getUUID());
+		player.setAttached(ModAttachments.ULTIMATE_READY, 0L);
+		sync(player);
+	}
+
 	/** Tells the client how long each skill still has to wait. */
 	public static void sync(ServerPlayer player) {
 		if (!ServerPlayNetworking.canSend(player, SkillCooldownPayload.TYPE)) {

@@ -432,5 +432,6 @@
   "skill.sacredsouls.lightning": "Thunder Wrath",
   "skill.sacredsouls.ice": "Ice Prison",
   "skill.sacredsouls.blood": "Blood Pact",
-  "skill.sacredsouls.king": "Judgment of Eight Elements"
+  "skill.sacredsouls.king": "Judgment of Eight Elements",
+  "msg.sacredsouls.cmd.cooldown_reset": "Reset all skill cooldowns of %s."
 }
