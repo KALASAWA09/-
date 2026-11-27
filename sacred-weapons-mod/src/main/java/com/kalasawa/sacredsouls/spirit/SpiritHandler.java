@@ -81,7 +81,7 @@ public final class SpiritHandler {
 	}
 
 	/** Spirit King holds every spirit at this level. */
-	private static final int KING_LEVEL = 2;
+	private static final int KING_LEVEL = 3;
 
 	private static boolean isKing(SoulData data) {
 		return !data.isSoulless() && data.soulTitle() == SoulTitle.SPIRIT_KING;
