@@ -9,7 +9,7 @@ public enum SoulTitle {
 	REAPER("reaper"),
 	HEIR("heir"),
 	DEVOURER("devourer"),
-	FALLEN_KING("fallen_king"),
+	SPIRIT_KING("spirit_king"),
 	BERSERKER("berserker"),
 	NAMELESS_SHADOW("nameless_shadow"),
 	GUARDIAN("guardian"),

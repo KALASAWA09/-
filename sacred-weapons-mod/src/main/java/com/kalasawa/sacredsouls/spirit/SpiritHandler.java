@@ -30,6 +30,7 @@ import com.kalasawa.sacredsouls.SacredSouls;
 import com.kalasawa.sacredsouls.soul.Effects;
 import com.kalasawa.sacredsouls.soul.SoulData;
 import com.kalasawa.sacredsouls.soul.SoulManager;
+import com.kalasawa.sacredsouls.title.SoulTitle;
 
 /**
  * Passive powers of the bound spirit and its aura of particles. Spirits are a tier above
@@ -53,10 +54,21 @@ public final class SpiritHandler {
 		return level >= 3 ? c : level == 2 ? b : a;
 	}
 
-	/** Level of the spirit if it is the one the player has bound and can use, else 0. */
+	/** Spirit King holds every spirit at this level. */
+	private static final int KING_LEVEL = 2;
+
+	private static boolean isKing(SoulData data) {
+		return !data.isSoulless() && data.soulTitle() == SoulTitle.SPIRIT_KING;
+	}
+
+	/** Level of the spirit if the player can use it: their bound spirit, or every spirit for the Spirit King. */
 	private static int level(ServerPlayer player, Spirit spirit) {
 		SoulData data = SoulManager.get(player);
-		return !data.isSoulless() && data.spirit() == spirit ? data.spiritLevel() : 0;
+		if (data.isSoulless()) {
+			return 0;
+		}
+		int own = data.spirit() == spirit ? data.spiritLevel() : 0;
+		return isKing(data) ? Math.max(own, KING_LEVEL) : own;
 	}
 
 	private static boolean enemy(ServerPlayer self, Entity other) {
@@ -95,6 +107,18 @@ public final class SpiritHandler {
 			return;
 		}
 		SoulData data = SoulManager.get(player);
+		if (isKing(data)) {
+			// Spirit King: three motes that cycle through all eight elements.
+			Spirit[] all = Spirit.values();
+			for (int i = 0; i < 3; i++) {
+				Spirit element = all[(int) ((time / 6 + i * 3) % all.length)];
+				double angle = time * 0.18 + i * (Math.PI * 2 / 3);
+				double height = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(time * 0.07 + i * 2.1));
+				level.sendParticles(particle(element, player, i), player.getX() + Math.cos(angle) * 0.9, player.getY() + height,
+						player.getZ() + Math.sin(angle) * 0.9, 1, 0.0, 0.0, 0.0, 0.0);
+			}
+			return;
+		}
 		Spirit spirit = data.spirit();
 		if (spirit == null || data.isSoulless()) {
 			return;

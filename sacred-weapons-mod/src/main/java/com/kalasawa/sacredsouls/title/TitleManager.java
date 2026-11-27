@@ -18,6 +18,7 @@ import com.kalasawa.sacredsouls.power.SoulPower;
 import com.kalasawa.sacredsouls.soul.ModAttachments;
 import com.kalasawa.sacredsouls.soul.SoulData;
 import com.kalasawa.sacredsouls.soul.SoulManager;
+import com.kalasawa.sacredsouls.spirit.Spirit;
 
 /**
  * Titles are earned by deeds. Each title has one holder on the server, a player holds at most one,
@@ -108,16 +109,8 @@ public final class TitleManager {
 			case WAR_GOD -> data.killStreak >= 10;
 			case REAPER -> data.soullessCaused >= 3;
 			case HEIR -> false; // Needs the awakening ritual at the shrine (phase 2).
-			case DEVOURER -> data.devoured.size() >= DEVOURER_KINDS;
-			case FALLEN_KING -> {
-				int others = 0;
-				for (String held : data.titlesHeld) {
-					if (!held.equals(SoulTitle.FALLEN_KING.id)) {
-						others++;
-					}
-				}
-				yield others >= 3;
-			}
+			case DEVOURER -> data.devoured.stream().filter(id -> !id.startsWith(SoulData.SPIRIT_PREFIX)).count() >= DEVOURER_KINDS;
+			case SPIRIT_KING -> java.util.Arrays.stream(Spirit.values()).allMatch(s -> data.devoured.contains(SoulData.SPIRIT_PREFIX + s.id));
 			case BERSERKER -> data.clutchWins >= 5;
 			case NAMELESS_SHADOW -> data.invisKills >= 5;
 			case GUARDIAN -> player.getStats().getValue(Stats.CUSTOM.get(Stats.RAID_WIN)) >= 5;

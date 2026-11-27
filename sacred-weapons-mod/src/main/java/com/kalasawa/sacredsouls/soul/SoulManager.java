@@ -100,6 +100,9 @@ public final class SoulManager {
 			data.essence += gain;
 		} else if (current == null) {
 			data.setSpirit(spirit, 1);
+			if (!data.devoured.contains(SoulData.SPIRIT_PREFIX + spirit.id)) {
+				data.devoured.add(SoulData.SPIRIT_PREFIX + spirit.id);
+			}
 		} else {
 			say(player, msg("spirit_full", current.displayName()).withStyle(ChatFormatting.RED));
 			return false;
@@ -112,6 +115,7 @@ public final class SoulManager {
 		} else {
 			say(player, msg("spirit_bound", spirit.displayName(), spirit.summary()).withStyle(ChatFormatting.AQUA));
 		}
+		TitleManager.checkConditions(player);
 		return true;
 	}
 

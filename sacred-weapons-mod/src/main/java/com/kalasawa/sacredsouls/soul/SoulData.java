@@ -22,6 +22,8 @@ public final class SoulData {
 	public static final int MAX_SLOTS = 5;
 	/** Slot index used for the spirit slot in the soul screen and network actions. */
 	public static final int SPIRIT_SLOT = MAX_SLOTS;
+	/** Spirits ever bound are remembered in {@link #devoured} as "spirit:<id>". */
+	public static final String SPIRIT_PREFIX = "spirit:";
 	public static final int MAX_LEVEL = 3;
 	public static final int MAX_ENERGY = 10;
 	public static final int START_ENERGY = 5;

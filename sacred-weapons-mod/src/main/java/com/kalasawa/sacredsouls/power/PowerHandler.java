@@ -456,11 +456,6 @@ public final class PowerHandler {
 		switch (title) {
 			case WAR_GOD -> Effects.keep(player, "resistance", 0, 40);
 			case HEIR -> Effects.keep(player, "health_boost", 0, 40);
-			case FALLEN_KING -> {
-				for (ServerPlayer ally : allies(player, level)) {
-					Effects.keep(ally, "strength", 0, 40);
-				}
-			}
 			case NAMELESS_SHADOW -> Effects.keep(player, "night_vision", 0, 260);
 			case GUARDIAN -> {
 				Effects.keep(player, "hero_of_the_village", 0, 40);
@@ -1066,13 +1061,6 @@ public final class PowerHandler {
 				Effects.give(other, "absorption", crow - 1, 600);
 				level.sendParticles(ParticleTypes.SOUL, other.getX(), other.getY() + 1.0, other.getZ(), 8, 0.3, 0.5, 0.3, 0.02);
 			}
-		}
-		if (title(victim) == SoulTitle.FALLEN_KING) {
-			for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, victim.getBoundingBox().inflate(6.0), e -> enemy(victim, e))) {
-				Effects.give(target, "weakness", 1, 100);
-			}
-			level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, victim.getX(), victim.getY() + 1.0, victim.getZ(), 80, 1.5, 1.0, 1.5, 0.05);
-			level.playSound(null, victim.getX(), victim.getY(), victim.getZ(), SoundEvents.WITHER_SPAWN, SoundSource.PLAYERS, 0.6f, 1.4f);
 		}
 		ServerPlayer killer = source.getEntity() instanceof ServerPlayer p && p != victim ? p : null;
 		if (killer != null) {
