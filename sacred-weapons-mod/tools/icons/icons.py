@@ -723,8 +723,8 @@ for _name, _o, _i, _e in (
         ("light", "ffe680", "fffbe0", "b07a1a"),
         ("water", "2a8aff", "9fd8ff", "0a2a6a"),
         ("death", "c8c0a8", "f4efe0", "c0202a"),
-        ("earth", "5aa83a", "b8e07a", "3a2a10"),
         ("darkness", "5a2aa0", "9a6ae0", "ffe14a"),
         ("lightning", "f5c63a", "fff4a0", "3a3a8a"),
-        ("stone", "8a8a96", "c8c8d4", "2a2a34")):
+        ("ice", "7ad0f0", "e8fbff", "1a4a7a"),
+        ("blood", "a0121e", "ff6a6a", "2a0508")):
     icon("spirit_" + _name, {"o": _o, "i": _i, "e": _e}, WISP)

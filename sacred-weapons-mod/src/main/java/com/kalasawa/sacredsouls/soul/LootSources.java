@@ -96,10 +96,12 @@ public final class LootSources {
 		spirit("chests/stronghold_library", Spirit.LIGHT, 0.25f, false);
 		spirit("chests/underwater_ruin_big", Spirit.WATER, 0.12f, false);
 		spirit("chests/ancient_city", Spirit.DEATH, 0.12f, false);
-		spirit("chests/simple_dungeon", Spirit.EARTH, 0.08f, false);
 		spirit("entities/warden", Spirit.DARKNESS, 0.50f, true);
 		spirit("chests/woodland_mansion", Spirit.LIGHTNING, 0.20f, false);
-		spirit("chests/stronghold_corridor", Spirit.STONE, 0.08f, false);
+		spirit("chests/igloo_chest", Spirit.ICE, 0.40f, false);
+		spirit("entities/stray", Spirit.ICE, 0.03f, true);
+		spirit("chests/bastion_treasure", Spirit.BLOOD, 0.30f, false);
+		spirit("chests/bastion_other", Spirit.BLOOD, 0.06f, false);
 	}
 
 	private static void add(String table, Drop drop) {

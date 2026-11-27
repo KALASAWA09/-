@@ -63,6 +63,14 @@ public final class SpiritHandler {
 	private static final ParticleOptions SPARK_DUST = new DustParticleOptions(0xFFF27A, 0.7f);
 	private static final Map<UUID, Long> SPARK_READY = new HashMap<>();
 	private static final Map<UUID, Long> BOLT_READY = new HashMap<>();
+	private static final ParticleOptions FROST_DUST = new DustParticleOptions(0xD8F4FF, 0.9f);
+	private static final Identifier ICE_SPEED = SacredSouls.id("spirit_ice_speed");
+	private static final Map<UUID, Long> FROST_BURST_READY = new HashMap<>();
+	/** Ticks of freezing that make a mob shake and slow, like powder snow. */
+	private static final int FROZEN_TICKS = 200;
+	private static final ParticleOptions BLOOD_DUST = new DustParticleOptions(0x8A0A16, 1.0f);
+	private static final Identifier BLOOD_ATTACK_SPEED = SacredSouls.id("spirit_blood_attack_speed");
+	private static final Map<UUID, Long> BLOOD_DRAIN_READY = new HashMap<>();
 	private static final ParticleOptions GOLD_DUST = new DustParticleOptions(0xFFD86B, 0.8f);
 
 	private SpiritHandler() {
@@ -99,6 +107,13 @@ public final class SpiritHandler {
 		return other instanceof Enemy;
 	}
 
+	private static boolean onIceOrSnow(ServerPlayer player) {
+		net.minecraft.world.level.block.state.BlockState below = player.level().getBlockState(player.getOnPos());
+		net.minecraft.world.level.block.state.BlockState at = player.level().getBlockState(player.blockPosition());
+		return below.is(net.minecraft.tags.BlockTags.ICE) || below.is(net.minecraft.world.level.block.Blocks.SNOW_BLOCK)
+				|| below.is(net.minecraft.world.level.block.Blocks.POWDER_SNOW) || at.is(net.minecraft.world.level.block.Blocks.SNOW);
+	}
+
 	/** In a dark place (light 7 or less), or anywhere at night. */
 	private static boolean inDarkness(ServerPlayer player) {
 		long time = player.level().getDayTime() % 24000L;
@@ -125,12 +140,14 @@ public final class SpiritHandler {
 			case WATER -> mote % 2 == 1 ? ParticleTypes.SPLASH : player.isInWater() ? ParticleTypes.BUBBLE : ParticleTypes.BUBBLE_POP;
 			// Dark purple smoke with dim drifting souls.
 			case DEATH -> mote % 2 == 0 ? DEATH_SMOKE : ParticleTypes.SOUL;
-			case EARTH -> ParticleTypes.COMPOSTER;
 			// Black shadow smoke with deep purple-black specks.
 			case DARKNESS -> mote % 2 == 0 ? ParticleTypes.SMOKE : SHADOW_DUST;
 			// Pale blue and yellow crackles.
 			case LIGHTNING -> mote % 2 == 0 ? ParticleTypes.ELECTRIC_SPARK : SPARK_DUST;
-			case STONE -> ParticleTypes.WHITE_ASH;
+			// Snowflakes and cold mist.
+			case ICE -> mote % 2 == 0 ? ParticleTypes.SNOWFLAKE : FROST_DUST;
+			// Dark blood-red drops.
+			case BLOOD -> BLOOD_DUST;
 		};
 	}
 
@@ -175,7 +192,9 @@ public final class SpiritHandler {
 		}
 		int motes = data.spiritLevel() >= 3 ? 3 : 2;
 		for (int i = 0; i < motes; i++) {
-			double angle = time * 0.18 + i * (Math.PI * 2 / motes);
+			// Blood: the lower your health, the faster the drops spin.
+			double spin = spirit == Spirit.BLOOD ? 1.0 + 2.0 * (1.0 - player.getHealth() / player.getMaxHealth()) : 1.0;
+			double angle = time * 0.18 * spin + i * (Math.PI * 2 / motes);
 			double height = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(time * 0.07 + i * 2.1));
 			double x = player.getX() + Math.cos(angle) * 0.8;
 			double z = player.getZ() + Math.sin(angle) * 0.8;
@@ -224,15 +243,20 @@ public final class SpiritHandler {
 			player.removeEffect(Effects.get("wither"));
 		}
 
-		// Earth: cannot be knocked back, digs fast, strong while standing on the ground.
-		int earth = level(player, Spirit.EARTH);
-		setModifier(player, Attributes.KNOCKBACK_RESISTANCE, EARTH_KNOCKBACK, 1.0, AttributeModifier.Operation.ADD_VALUE, earth > 0);
-		if (earth > 0) {
-			Effects.keep(player, "haste", earth >= 2 ? 1 : 0, 40);
+		// Blood: swings faster below half health.
+		int blood = level(player, Spirit.BLOOD);
+		setModifier(player, Attributes.ATTACK_SPEED, BLOOD_ATTACK_SPEED, 0.10, AttributeModifier.Operation.ADD_MULTIPLIED_BASE,
+				blood > 0 && player.getHealth() < player.getMaxHealth() * 0.5f);
+
+		// Removed earth spirit.
+		setModifier(player, Attributes.KNOCKBACK_RESISTANCE, EARTH_KNOCKBACK, 0, AttributeModifier.Operation.ADD_VALUE, false);
+
+		// Ice: never freezes, and moves fast on ice and snow.
+		int ice = level(player, Spirit.ICE);
+		if (ice > 0) {
+			player.setTicksFrozen(0);
 		}
-		if (earth >= 3 && player.onGround()) {
-			Effects.keep(player, "strength", 0, 40);
-		}
+		setModifier(player, Attributes.MOVEMENT_SPEED, ICE_SPEED, 0.20, AttributeModifier.Operation.ADD_MULTIPLIED_BASE, ice > 0 && onIceOrSnow(player));
 
 		// Lightning: fast feet and faster swings.
 		int lightning = level(player, Spirit.LIGHTNING);
@@ -302,6 +326,14 @@ public final class SpiritHandler {
 			}
 			amount += 3.0f;
 		}
+		// Blood level 3: fights harder below 35% health.
+		if (level(attacker, Spirit.BLOOD) >= 3 && attacker.getHealth() < attacker.getMaxHealth() * 0.35f) {
+			amount *= 1.15f;
+		}
+		// Ice level 3: hits on a slowed or frozen enemy land harder.
+		if (level(attacker, Spirit.ICE) >= 3 && (victim.hasEffect(Effects.get("slowness")) || victim.isFullyFrozen())) {
+			amount *= 1.15f;
+		}
 		// Fire: hits on a burning enemy land harder (level 2); a hit sets the enemy alight, once every 2.5s.
 		int fire = level(attacker, Spirit.FIRE);
 		if (fire >= 2 && victim.isOnFire()) {
@@ -333,14 +365,25 @@ public final class SpiritHandler {
 		if (level(player, Spirit.LIGHTNING) > 0 && source.is(DamageTypes.LIGHTNING_BOLT)) {
 			return 0.0f;
 		}
-		int earth = level(player, Spirit.EARTH);
-		if (earth > 0 && (source.is(DamageTypeTags.IS_FALL) || source.is(DamageTypes.IN_WALL))) {
+		// Ice: cold cannot hurt you; level 2 takes 20% less from fire.
+		int ice = level(player, Spirit.ICE);
+		if (ice > 0 && source.is(DamageTypes.FREEZE)) {
 			return 0.0f;
 		}
-		int stone = level(player, Spirit.STONE);
-		if (stone > 0) {
-			float cut = source.is(DamageTypeTags.IS_PROJECTILE) ? pick(stone, 0.40f, 0.50f, 0.60f) : pick(stone, 0.15f, 0.20f, 0.25f);
-			amount *= 1.0f - cut;
+		if (ice >= 2 && source.is(DamageTypeTags.IS_FIRE)) {
+			amount *= 0.80f;
+		}
+		// Ice level 3: a melee hit taken may release a burst of cold that freezes enemies within 3 blocks.
+		long frostTime = level.getGameTime();
+		if (ice >= 3 && source.getEntity() instanceof LivingEntity hitter && source.getDirectEntity() == hitter && hitter != player
+				&& FROST_BURST_READY.getOrDefault(player.getUUID(), 0L) <= frostTime && player.getRandom().nextFloat() < 0.20f) {
+			FROST_BURST_READY.put(player.getUUID(), frostTime + 300);
+			for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(3), e -> enemy(player, e))) {
+				target.setTicksFrozen(Math.max(target.getTicksFrozen(), FROZEN_TICKS + 30));
+				Effects.give(target, "slowness", 3, 30);
+			}
+			level.sendParticles(ParticleTypes.SNOWFLAKE, player.getX(), player.getY() + 1.0, player.getZ(), 60, 1.5, 0.6, 1.5, 0.05);
+			level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.GLASS_BREAK, SoundSource.PLAYERS, 0.8f, 1.4f);
 		}
 		// Lightning level 2: when hit, 20% to discharge sparks at enemies within 3 blocks (10s cooldown).
 		int lightning = level(player, Spirit.LIGHTNING);
@@ -388,6 +431,23 @@ public final class SpiritHandler {
 
 	/** After the player hits something in melee. */
 	public static void onHit(ServerPlayer attacker, LivingEntity victim) {
+		// Blood level 2: hits may drink back health (1 heart, 1.5 at level 3).
+		int blood = level(attacker, Spirit.BLOOD);
+		long drainTime = attacker.level().getGameTime();
+		if (blood >= 2 && BLOOD_DRAIN_READY.getOrDefault(attacker.getUUID(), 0L) <= drainTime && attacker.getRandom().nextFloat() < 0.20f) {
+			BLOOD_DRAIN_READY.put(attacker.getUUID(), drainTime + (blood >= 3 ? 80 : 100));
+			attacker.heal(blood >= 3 ? 3.0f : 2.0f);
+			((ServerLevel) attacker.level()).sendParticles(BLOOD_DUST, victim.getX(), victim.getY() + 1.0, victim.getZ(), 10, 0.3, 0.4, 0.3, 0.0);
+		}
+		// Ice: hits can slow; level 2 also freezes the enemy so it shakes and crawls.
+		int ice = level(attacker, Spirit.ICE);
+		if (ice > 0 && attacker.getRandom().nextFloat() < (ice >= 2 ? 0.25f : 0.15f)) {
+			Effects.give(victim, "slowness", 0, 30);
+			if (ice >= 2) {
+				victim.setTicksFrozen(Math.max(victim.getTicksFrozen(), FROZEN_TICKS));
+			}
+			((ServerLevel) attacker.level()).sendParticles(ParticleTypes.SNOWFLAKE, victim.getX(), victim.getY() + 1.0, victim.getZ(), 8, 0.3, 0.5, 0.3, 0.02);
+		}
 		int darkness = level(attacker, Spirit.DARKNESS);
 		long now = attacker.level().getGameTime();
 		if (darkness >= 2 && inDarkness(attacker) && DARK_BLIND_READY.getOrDefault(attacker.getUUID(), 0L) <= now

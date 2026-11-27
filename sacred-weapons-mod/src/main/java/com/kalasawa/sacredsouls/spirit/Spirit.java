@@ -3,16 +3,16 @@ package com.kalasawa.sacredsouls.spirit;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 
-/** The 8 elemental spirits. A player can bind one, in the 6th (spirit) slot. */
+/** The elemental spirits. A player can bind one, in the 6th (spirit) slot. */
 public enum Spirit {
 	FIRE("fire", 0xFF7A2A),
 	LIGHT("light", 0xFFF2A0),
 	WATER("water", 0x3A9AFF),
 	DEATH("death", 0xE8E0C8),
-	EARTH("earth", 0x7AC04A),
 	DARKNESS("darkness", 0x8A4AD0),
 	LIGHTNING("lightning", 0xFFE14A),
-	STONE("stone", 0xA8A8B4);
+	ICE("ice", 0xBFEFFF),
+	BLOOD("blood", 0xA0121E);
 
 	public final String id;
 	public final int color;
