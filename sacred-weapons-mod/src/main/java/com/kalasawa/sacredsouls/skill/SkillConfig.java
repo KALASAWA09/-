@@ -21,8 +21,8 @@ public final class SkillConfig {
 	public static int regrowSeconds = 10;
 	/** Lets the Spirit King ultimate break blocks at all (still follows blockMode). */
 	public static boolean ultimateBreaksBlocks = true;
-	/** Radius of the ultimate's third wave, 20 to 70 blocks. */
-	public static int ultimateRadius = 50;
+	/** Radius of the ultimate's last wave, 20 to 200 blocks. */
+	public static int ultimateRadius = 150;
 	/** Cast time of the ultimate in seconds, 5 to 10. */
 	public static int ultimateCastSeconds = 8;
 	/** Seconds before blocks broken by the ultimate grow back in temporary mode. */
@@ -50,7 +50,10 @@ public final class SkillConfig {
 		}
 		regrowSeconds = clamp(intOf(props, "skill_regrow_seconds", 10), 2, 600);
 		ultimateBreaksBlocks = Boolean.parseBoolean(props.getProperty("ultimate_breaks_blocks", "true").trim());
-		ultimateRadius = clamp(intOf(props, "ultimate_radius", 50), 20, 70);
+		ultimateRadius = clamp(intOf(props, "ultimate_radius", 150), 20, 200);
+		if (intOf(props, "config_version", 1) < 2) {
+			ultimateRadius = 150; // The radius went from 50 to 150 in version 2.
+		}
 		ultimateCastSeconds = clamp(intOf(props, "ultimate_cast_seconds", 8), 5, 10);
 		ultimateRegrowSeconds = clamp(intOf(props, "ultimate_regrow_seconds", 60), 10, 3600);
 		blocksPerTick = clamp(intOf(props, "blocks_per_tick", 2000), 100, 20000);
@@ -59,6 +62,7 @@ public final class SkillConfig {
 
 	private static void save(Path file) {
 		Properties props = new Properties();
+		props.setProperty("config_version", "2");
 		props.setProperty("skill_block_mode", blockMode.name().toLowerCase());
 		props.setProperty("skill_regrow_seconds", Integer.toString(regrowSeconds));
 		props.setProperty("ultimate_breaks_blocks", Boolean.toString(ultimateBreaksBlocks));

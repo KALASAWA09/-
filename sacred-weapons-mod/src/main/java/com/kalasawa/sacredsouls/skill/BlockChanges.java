@@ -140,6 +140,9 @@ public final class BlockChanges {
 				continue;
 			}
 			checks--;
+			if (!job.level().isLoaded(pos)) {
+				continue; // Never load or generate chunks just to blow them up.
+			}
 			if (breakBlock(job.level(), job.owner(), pos, job.naturalOnly(), job.regrowTicks())) {
 				budget--;
 			}
@@ -156,6 +159,10 @@ public final class BlockChanges {
 				break;
 			}
 			RESTORES.poll();
+			if (!restore.level().isLoaded(restore.pos())) {
+				later.add(new Restore(restore.level(), restore.pos(), restore.original(), restore.left(), now + 200));
+				continue; // Wait until someone is near again instead of loading the chunk.
+			}
 			if (!restore.level().getBlockState(restore.pos()).equals(restore.left())) {
 				continue; // Something else changed it since; leave it alone.
 			}
