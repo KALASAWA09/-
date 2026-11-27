@@ -1041,6 +1041,9 @@ public final class PowerHandler {
 	}
 
 	public void afterDeath(LivingEntity entity, DamageSource source) {
+		if (source.getEntity() instanceof ServerPlayer killer && killer != entity) {
+			SpiritHandler.onKill(killer, entity);
+		}
 		// แมลงทองคำ: extra experience from mobs you kill.
 		if (source.getEntity() instanceof ServerPlayer hunter && !(entity instanceof Player) && entity.level() instanceof ServerLevel mobLevel) {
 			int scarab = level(hunter, SoulPower.GOLDEN_SCARAB);

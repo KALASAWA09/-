@@ -95,7 +95,7 @@ public final class LootSources {
 		spirit("chests/nether_bridge", Spirit.FIRE, 0.12f, false);
 		spirit("chests/stronghold_library", Spirit.LIGHT, 0.25f, false);
 		spirit("chests/underwater_ruin_big", Spirit.WATER, 0.12f, false);
-		spirit("chests/trial_chambers/reward_ominous", Spirit.WIND, 0.15f, false);
+		spirit("chests/ancient_city", Spirit.DEATH, 0.12f, false);
 		spirit("chests/simple_dungeon", Spirit.EARTH, 0.08f, false);
 		spirit("entities/warden", Spirit.DARKNESS, 0.50f, true);
 		spirit("chests/woodland_mansion", Spirit.LIGHTNING, 0.20f, false);

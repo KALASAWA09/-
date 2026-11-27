@@ -6,7 +6,6 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.LivingEntity;
@@ -48,7 +47,7 @@ public final class SpiritHandler {
 			case FIRE -> ParticleTypes.FLAME;
 			case LIGHT -> ParticleTypes.END_ROD;
 			case WATER -> ParticleTypes.FALLING_WATER;
-			case WIND -> ParticleTypes.CLOUD;
+			case DEATH -> ParticleTypes.SOUL;
 			case EARTH -> ParticleTypes.COMPOSTER;
 			case DARKNESS -> ParticleTypes.REVERSE_PORTAL;
 			case LIGHTNING -> ParticleTypes.ELECTRIC_SPARK;
@@ -106,8 +105,11 @@ public final class SpiritHandler {
 			Effects.keep(player, "dolphins_grace", 0, 40);
 		}
 
-		int wind = level(player, Spirit.WIND);
-		setModifier(player, Attributes.MOVEMENT_SPEED, WIND_SPEED, pick(wind, 0.05f, 0.10f, 0.15f), AttributeModifier.Operation.ADD_MULTIPLIED_BASE, wind > 0);
+		// The wind spirit was replaced by death; clear its old speed bonus.
+		setModifier(player, Attributes.MOVEMENT_SPEED, WIND_SPEED, 0, AttributeModifier.Operation.ADD_MULTIPLIED_BASE, false);
+		if (level(player, Spirit.DEATH) > 0 && player.hasEffect(Effects.get("wither"))) {
+			player.removeEffect(Effects.get("wither"));
+		}
 
 		int earth = level(player, Spirit.EARTH);
 		setModifier(player, Attributes.KNOCKBACK_RESISTANCE, EARTH_KNOCKBACK, pick(earth, 0.2f, 0.35f, 0.5f), AttributeModifier.Operation.ADD_VALUE, earth > 0);
@@ -123,12 +125,8 @@ public final class SpiritHandler {
 		setModifier(player, Attributes.ARMOR_TOUGHNESS, STONE_TOUGHNESS, 2, AttributeModifier.Operation.ADD_VALUE, stone >= 3);
 	}
 
-	/** Damage the player takes: wind softens falls, lightning cannot hurt a lightning spirit. */
+	/** Damage the player takes: lightning cannot hurt a lightning spirit. */
 	public static float modifyIncomingDamage(ServerPlayer player, DamageSource source, float amount) {
-		int wind = level(player, Spirit.WIND);
-		if (wind > 0 && source.is(DamageTypeTags.IS_FALL)) {
-			amount *= 1.0f - pick(wind, 0.3f, 0.5f, 0.7f);
-		}
 		if (level(player, Spirit.LIGHTNING) > 0 && source.is(DamageTypes.LIGHTNING_BOLT)) {
 			amount = 0.0f;
 		}
@@ -144,6 +142,19 @@ public final class SpiritHandler {
 		int darkness = level(attacker, Spirit.DARKNESS);
 		if (darkness > 0 && attacker.getRandom().nextFloat() < pick(darkness, 0.15f, 0.25f, 0.35f)) {
 			Effects.give(victim, "blindness", 0, 40);
+		}
+		int death = level(attacker, Spirit.DEATH);
+		if (death > 0 && attacker.getRandom().nextFloat() < pick(death, 0.15f, 0.25f, 0.35f)) {
+			Effects.give(victim, "wither", 0, 60);
+		}
+	}
+
+	/** The death spirit drinks a little life from every kill. */
+	public static void onKill(ServerPlayer killer, LivingEntity victim) {
+		int death = level(killer, Spirit.DEATH);
+		if (death > 0) {
+			killer.heal(pick(death, 2.0f, 3.0f, 4.0f));
+			((ServerLevel) killer.level()).sendParticles(ParticleTypes.SOUL, victim.getX(), victim.getY() + 1.0, victim.getZ(), 8, 0.3, 0.5, 0.3, 0.02);
 		}
 	}
 

@@ -8,7 +8,7 @@ public enum Spirit {
 	FIRE("fire", 0xFF7A2A),
 	LIGHT("light", 0xFFF2A0),
 	WATER("water", 0x3A9AFF),
-	WIND("wind", 0xB8F4FF),
+	DEATH("death", 0xE8E0C8),
 	EARTH("earth", 0x7AC04A),
 	DARKNESS("darkness", 0x8A4AD0),
 	LIGHTNING("lightning", 0xFFE14A),
