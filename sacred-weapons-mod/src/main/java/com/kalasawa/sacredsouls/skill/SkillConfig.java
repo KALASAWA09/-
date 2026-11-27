@@ -60,6 +60,12 @@ public final class SkillConfig {
 		save(file);
 	}
 
+	/** Changes the block mode in game and writes it to the config file. */
+	public static void setBlockMode(BlockMode mode) {
+		blockMode = mode;
+		save(FabricLoader.getInstance().getConfigDir().resolve("sacredsouls.properties"));
+	}
+
 	private static void save(Path file) {
 		Properties props = new Properties();
 		props.setProperty("config_version", "2");

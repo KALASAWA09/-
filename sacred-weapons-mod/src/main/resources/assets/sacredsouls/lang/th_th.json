@@ -433,5 +433,10 @@
   "skill.sacredsouls.ice": "คุกน้ำแข็ง",
   "skill.sacredsouls.blood": "พันธสัญญาโลหิต",
   "skill.sacredsouls.king": "พิพากษาแปดธาตุ",
-  "msg.sacredsouls.cmd.cooldown_reset": "รีเซ็ตคูลดาวน์สกิลทั้งหมดของ %s แล้ว"
+  "msg.sacredsouls.cmd.cooldown_reset": "รีเซ็ตคูลดาวน์สกิลทั้งหมดของ %s แล้ว",
+  "msg.sacredsouls.cmd.destruction_is": "การทำลายบล็อกของสกิล: %s",
+  "msg.sacredsouls.cmd.destruction_set": "ตั้งการทำลายบล็อกของสกิลเป็น: %s (บันทึกลง config แล้ว)",
+  "msg.sacredsouls.cmd.destruction_off": "ปิด",
+  "msg.sacredsouls.cmd.destruction_temporary": "ชั่วคราว (บล็อกงอกกลับ)",
+  "msg.sacredsouls.cmd.destruction_permanent": "ถาวร (บล็อกไม่กลับมา)"
 }

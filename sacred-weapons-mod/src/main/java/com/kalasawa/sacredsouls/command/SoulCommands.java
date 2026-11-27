@@ -67,11 +67,29 @@ public final class SoulCommands {
 								.then(Commands.argument("player", EntityArgument.player())
 										.then(Commands.argument("amount", IntegerArgumentType.integer())
 												.executes(SoulCommands::addEssence)))))
+				.then(Commands.literal("destruction")
+						.executes(ctx -> {
+							ctx.getSource().sendSuccess(() -> msg("destruction_is", mode(com.kalasawa.sacredsouls.skill.SkillConfig.blockMode)), false);
+							return 1;
+						})
+						.then(Commands.literal("off").executes(ctx -> setDestruction(ctx.getSource(), com.kalasawa.sacredsouls.skill.SkillConfig.BlockMode.OFF)))
+						.then(Commands.literal("temporary").executes(ctx -> setDestruction(ctx.getSource(), com.kalasawa.sacredsouls.skill.SkillConfig.BlockMode.TEMPORARY)))
+						.then(Commands.literal("permanent").executes(ctx -> setDestruction(ctx.getSource(), com.kalasawa.sacredsouls.skill.SkillConfig.BlockMode.PERMANENT))))
 				.then(Commands.literal("cooldown")
 						.then(Commands.literal("reset")
 								.executes(ctx -> resetCooldowns(ctx.getSource(), ctx.getSource().getPlayerOrException()))
 								.then(Commands.argument("player", EntityArgument.player())
 										.executes(ctx -> resetCooldowns(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))))));
+	}
+
+	private static Component mode(com.kalasawa.sacredsouls.skill.SkillConfig.BlockMode mode) {
+		return msg("destruction_" + mode.name().toLowerCase());
+	}
+
+	private static int setDestruction(CommandSourceStack source, com.kalasawa.sacredsouls.skill.SkillConfig.BlockMode mode) {
+		com.kalasawa.sacredsouls.skill.SkillConfig.setBlockMode(mode);
+		source.sendSuccess(() -> msg("destruction_set", mode(mode)), true);
+		return 1;
 	}
 
 	private static int resetCooldowns(CommandSourceStack source, ServerPlayer player) {

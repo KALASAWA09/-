@@ -433,5 +433,10 @@
   "skill.sacredsouls.ice": "Ice Prison",
   "skill.sacredsouls.blood": "Blood Pact",
   "skill.sacredsouls.king": "Judgment of Eight Elements",
-  "msg.sacredsouls.cmd.cooldown_reset": "Reset all skill cooldowns of %s."
+  "msg.sacredsouls.cmd.cooldown_reset": "Reset all skill cooldowns of %s.",
+  "msg.sacredsouls.cmd.destruction_is": "Skill block destruction: %s",
+  "msg.sacredsouls.cmd.destruction_set": "Skill block destruction is now: %s (saved to config)",
+  "msg.sacredsouls.cmd.destruction_off": "off",
+  "msg.sacredsouls.cmd.destruction_temporary": "temporary (blocks grow back)",
+  "msg.sacredsouls.cmd.destruction_permanent": "permanent (blocks never come back)"
 }
