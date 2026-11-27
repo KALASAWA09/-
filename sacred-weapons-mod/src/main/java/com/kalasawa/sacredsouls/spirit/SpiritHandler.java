@@ -56,6 +56,7 @@ public final class SpiritHandler {
 	private static final Map<UUID, Long> LIGHT_FLASH_READY = new HashMap<>();
 	/** Health and food from the last second, to notice healing and eating. */
 	private static final Map<UUID, float[]> LAST_VITALS = new HashMap<>();
+	private static final ParticleOptions DEATH_SMOKE = new DustParticleOptions(0x3B1450, 1.2f);
 	private static final ParticleOptions GOLD_DUST = new DustParticleOptions(0xFFD86B, 0.8f);
 
 	private SpiritHandler() {
@@ -104,8 +105,8 @@ public final class SpiritHandler {
 			case LIGHT -> GOLD_DUST;
 			// Bubbles only live in water; in air they show as popping bubbles.
 			case WATER -> mote % 2 == 1 ? ParticleTypes.SPLASH : player.isInWater() ? ParticleTypes.BUBBLE : ParticleTypes.BUBBLE_POP;
-			// Black smoke mixed with blue soul fire.
-			case DEATH -> mote % 2 == 0 ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.SMOKE;
+			// Dark purple smoke with dim drifting souls.
+			case DEATH -> mote % 2 == 0 ? DEATH_SMOKE : ParticleTypes.SOUL;
 			case EARTH -> ParticleTypes.COMPOSTER;
 			// The black smoke a Wither Rose gives off.
 			case DARKNESS -> ParticleTypes.SMOKE;
@@ -263,6 +264,10 @@ public final class SpiritHandler {
 		if (light >= 2 && victim.getType().is(EntityTypeTags.UNDEAD)) {
 			amount *= 1.20f;
 		}
+		// Death level 3: finishes off the wounded.
+		if (level(attacker, Spirit.DEATH) >= 3 && victim.getHealth() < victim.getMaxHealth() * 0.35f) {
+			amount *= 1.15f;
+		}
 		// Fire: hits on a burning enemy land harder (level 2); a hit sets the enemy alight, once every 2.5s.
 		int fire = level(attacker, Spirit.FIRE);
 		if (fire >= 2 && victim.isOnFire()) {
@@ -342,16 +347,16 @@ public final class SpiritHandler {
 			Effects.give(victim, "blindness", 0, 40);
 		}
 		int death = level(attacker, Spirit.DEATH);
-		if (death > 0 && attacker.getRandom().nextFloat() < pick(death, 0.15f, 0.25f, 0.35f)) {
-			Effects.give(victim, "wither", 1, 60);
+		if (death > 0 && attacker.getRandom().nextFloat() < (death >= 2 ? 0.25f : 0.15f)) {
+			Effects.give(victim, "wither", 0, 40);
 		}
 	}
 
 	/** The death spirit drinks life from every kill. */
 	public static void onKill(ServerPlayer killer, LivingEntity victim) {
 		int death = level(killer, Spirit.DEATH);
-		if (death > 0) {
-			killer.heal(pick(death, 4.0f, 6.0f, 8.0f));
+		if (death >= 2) {
+			killer.heal(4.0f);
 			((ServerLevel) killer.level()).sendParticles(ParticleTypes.SOUL, victim.getX(), victim.getY() + 1.0, victim.getZ(), 8, 0.3, 0.5, 0.3, 0.02);
 		}
 	}
@@ -359,7 +364,7 @@ public final class SpiritHandler {
 	/** Death spirit: refuse a fatal blow once in a while. Returns false to cancel the death. */
 	public static boolean allowDeath(ServerPlayer player) {
 		int death = level(player, Spirit.DEATH);
-		if (death <= 0) {
+		if (death < 3) {
 			return true;
 		}
 		ServerLevel level = (ServerLevel) player.level();
@@ -367,10 +372,11 @@ public final class SpiritHandler {
 		if (DEATH_READY.getOrDefault(player.getUUID(), 0L) > now) {
 			return true;
 		}
-		DEATH_READY.put(player.getUUID(), now + (long) pick(death, 6000, 4800, 3600));
+		DEATH_READY.put(player.getUUID(), now + 7200);
 		player.setHealth(4.0f);
-		Effects.give(player, "resistance", 2, 60);
-		level.sendParticles(ParticleTypes.SOUL, player.getX(), player.getY() + 1.0, player.getZ(), 40, 0.5, 0.8, 0.5, 0.05);
+		// Souls burst out in every direction.
+		level.sendParticles(ParticleTypes.SOUL, player.getX(), player.getY() + 1.0, player.getZ(), 60, 0.3, 0.5, 0.3, 0.15);
+		level.sendParticles(DEATH_SMOKE, player.getX(), player.getY() + 1.0, player.getZ(), 30, 0.8, 0.8, 0.8, 0.0);
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.WITHER_AMBIENT, SoundSource.PLAYERS, 0.6f, 1.6f);
 		player.displayClientMessage(SoulManager.msg("death_spirit_saved").withStyle(ChatFormatting.DARK_AQUA), false);
 		return false;
