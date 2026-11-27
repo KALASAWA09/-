@@ -109,7 +109,13 @@ public final class SkillHandler {
 	}
 
 	private static boolean enemy(ServerPlayer self, Entity other) {
-		if (other == self || !(other instanceof LivingEntity living) || !living.isAlive() || self.isAlliedTo(other)) {
+		if (other == self || !(other instanceof LivingEntity living) || !living.isAlive()) {
+			return false;
+		}
+		// Teammates are spared only when their team turns friendly fire off. Many servers put every player
+		// in one scoreboard team for name tags, and a plain ally check would make skills miss everyone.
+		net.minecraft.world.scores.PlayerTeam team = self.getTeam();
+		if (team != null && other.getTeam() == team && !team.isAllowFriendlyFire()) {
 			return false;
 		}
 		if (other instanceof Player player) {
@@ -132,18 +138,29 @@ public final class SkillHandler {
 	}
 
 	/**
-	 * Half of a skill hit is explosion damage (armor and Blast Protection count), half is a soul strike that
-	 * goes through armor and enchantments, like the Warden's sonic boom, so armored players still feel it.
-	 * Neither half has the caster as the direct attacker, so melee-only powers do not trigger.
+	 * A skill hit. Against players most of it is a soul strike that goes through armor and enchantments,
+	 * like the Warden's sonic boom, so full netherite does not shrug it off; the rest is explosion damage.
+	 * The caster is credited for kills but is not the direct attacker, so melee-only powers do not trigger.
+	 * Each hit is written to the server log so a hit that does nothing can be traced.
 	 */
 	private static void hit(ServerLevel level, ServerPlayer player, LivingEntity target, float amount) {
 		float total = amount * (float) SkillConfig.damageMultiplier;
+		float trueShare = target instanceof Player ? 0.7f : 0.4f;
+		float before = target.getHealth() + target.getAbsorptionAmount();
 		target.invulnerableTime = 0;
-		target.hurtServer(level, level.damageSources().explosion(null, player), total * 0.5f);
+		boolean first = target.hurtServer(level, level.damageSources().explosion(null, player), total * (1 - trueShare));
+		boolean second = false;
 		if (target.isAlive()) {
 			target.invulnerableTime = 0;
-			target.hurtServer(level, level.damageSources().source(DamageTypes.SONIC_BOOM, null, player), total * 0.5f);
+			second = target.hurtServer(level, level.damageSources().source(DamageTypes.SONIC_BOOM, null, player), total * trueShare);
 		}
+		float after = target.isAlive() ? target.getHealth() + target.getAbsorptionAmount() : 0;
+		com.kalasawa.sacredsouls.SacredSouls.LOGGER.info("[skill] {} hit {} for {} (applied: {}/{}, health {} -> {})",
+				player.getName().getString(), target.getName().getString(), total, first, second, before, after);
+		// Make the hit felt: a heavy thud and a burst at the victim.
+		level.playSound(null, target.getX(), target.getY(), target.getZ(), SoundEvents.PLAYER_ATTACK_STRONG, SoundSource.PLAYERS, 1.2f, 0.7f);
+		level.sendParticles(ParticleTypes.CRIT, true, true, target.getX(), target.getY() + 1.0, target.getZ(), 12, 0.4, 0.5, 0.4, 0.3);
+		level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, true, true, target.getX(), target.getY() + 1.2, target.getZ(), 4, 0.3, 0.3, 0.3, 0.1);
 	}
 
 	// ---------------------------------------------------------------- cooldowns

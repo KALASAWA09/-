@@ -20,7 +20,7 @@ public final class SkillConfig {
 	/** Seconds before blocks broken in temporary mode grow back. */
 	public static int regrowSeconds = 10;
 	/** Multiplies all skill damage, 0.5 to 5. */
-	public static double damageMultiplier = 2.0;
+	public static double damageMultiplier = 2.5;
 	/** Lets the Spirit King ultimate break blocks at all (still follows blockMode). */
 	public static boolean ultimateBreaksBlocks = true;
 	/** Radius of the ultimate's last wave, 20 to 200 blocks. */
@@ -51,7 +51,10 @@ public final class SkillConfig {
 			blockMode = BlockMode.TEMPORARY;
 		}
 		regrowSeconds = clamp(intOf(props, "skill_regrow_seconds", 10), 2, 600);
-		damageMultiplier = Math.max(0.5, Math.min(5.0, doubleOf(props, "skill_damage_multiplier", 2.0)));
+		damageMultiplier = Math.max(0.5, Math.min(5.0, doubleOf(props, "skill_damage_multiplier", 2.5)));
+		if (intOf(props, "config_version", 1) < 3 && damageMultiplier < 2.5) {
+			damageMultiplier = 2.5; // Raised from 2.0 in version 3.
+		}
 		ultimateBreaksBlocks = Boolean.parseBoolean(props.getProperty("ultimate_breaks_blocks", "true").trim());
 		ultimateRadius = clamp(intOf(props, "ultimate_radius", 150), 20, 200);
 		if (intOf(props, "config_version", 1) < 2) {
@@ -71,7 +74,7 @@ public final class SkillConfig {
 
 	private static void save(Path file) {
 		Properties props = new Properties();
-		props.setProperty("config_version", "2");
+		props.setProperty("config_version", "3");
 		props.setProperty("skill_block_mode", blockMode.name().toLowerCase());
 		props.setProperty("skill_regrow_seconds", Integer.toString(regrowSeconds));
 		props.setProperty("skill_damage_multiplier", Double.toString(damageMultiplier));
