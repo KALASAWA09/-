@@ -62,6 +62,10 @@ import com.kalasawa.sacredsouls.title.TitleManager;
 public final class PowerHandler {
 	private static final Identifier ROOT_KNOCKBACK = SacredSouls.id("root_knockback");
 	private static final Identifier BERSERKER_KNOCKBACK = SacredSouls.id("berserker_knockback");
+	/** Most health one hit can give back through lifesteal (1 heart). damageTaken is already after armor. */
+	private static final float HEAL_CAP_PER_HIT = 2.0f;
+	/** Share of max health the time crystal restores. */
+	private static final float REWIND_HEAL = 0.35f;
 	private static final Identifier IRON_SKIN_ARMOR = SacredSouls.id("iron_skin_armor");
 	private static final Identifier GIANT_BONE_HEALTH = SacredSouls.id("giant_bone_health");
 	private static final Identifier SWIFT_HOOF_SPEED = SacredSouls.id("swift_hoof_speed");
@@ -230,9 +234,9 @@ public final class PowerHandler {
 			player.removeEffect(Effects.get("wither"));
 		}
 
-		// รากไม้โบราณ: stand still for 3 seconds.
+		// รากไม้โบราณ: stand still for 2 seconds.
 		int root = level(player, SoulPower.ANCIENT_ROOT);
-		boolean rooted = root > 0 && state.stillTicks >= 60;
+		boolean rooted = root > 0 && state.stillTicks >= 40;
 		setTransientModifier(player, ROOT_KNOCKBACK, 1.0, rooted);
 		if (rooted && state.stillTicks % 20 == 0) {
 			Effects.keep(player, "regeneration", root >= 3 ? 1 : 0, 30);
@@ -251,6 +255,10 @@ public final class PowerHandler {
 				player.removeEffect(Effects.get("invisibility"));
 			} else {
 				Effects.keep(player, "invisibility", 0, 10);
+				// A faint shimmer so a hidden player can still be spotted up close.
+				if (player.tickCount % 10 == 0) {
+					level.sendParticles(ParticleTypes.WHITE_ASH, player.getX(), player.getY() + 1.0, player.getZ(), 2, 0.3, 0.5, 0.3, 0.0);
+				}
 			}
 		}
 
@@ -630,8 +638,11 @@ public final class PowerHandler {
 				cooldown(player, "crystal", pick(crystal, 6000, 4800, 3600));
 				level.sendParticles(ParticleTypes.REVERSE_PORTAL, player.getX(), player.getY() + 1.0, player.getZ(), 40, 0.4, 0.8, 0.4, 0.05);
 				player.teleportTo(past.pos().x, past.pos().y, past.pos().z);
-				player.setHealth(Math.max(health, Math.min(past.health(), player.getMaxHealth())));
+				// Only part of the health comes back, and the rewind leaves you dazed for a moment.
+				player.setHealth(Math.max(health, player.getMaxHealth() * REWIND_HEAL));
 				player.resetFallDistance();
+				Effects.give(player, "slowness", 2, 20);
+				Effects.give(player, "nausea", 0, 40);
 				level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0f, 0.5f);
 				player.displayClientMessage(SoulManager.msg("rewind").withStyle(ChatFormatting.AQUA), true);
 			}
@@ -726,7 +737,7 @@ public final class PowerHandler {
 		switch (title) {
 			case WAR_GOD -> {
 				if (roll(attacker, data, 0.25f)) {
-					attacker.heal(damageTaken * 0.25f);
+					attacker.heal(Math.min(damageTaken * 0.25f, HEAL_CAP_PER_HIT));
 					level.sendParticles(ParticleTypes.HEART, attacker.getX(), attacker.getY() + 1.8, attacker.getZ(), 2, 0.3, 0.2, 0.3, 0.0);
 				}
 			}
@@ -827,7 +838,7 @@ public final class PowerHandler {
 
 	private void secondNewPowers(ServerPlayer player, ServerLevel level, State state) {
 		int skin = level(player, SoulPower.IRON_SKIN);
-		setModifier(player, Attributes.ARMOR, IRON_SKIN_ARMOR, pick(skin, 2, 3, 4), AttributeModifier.Operation.ADD_VALUE, skin > 0);
+		setModifier(player, Attributes.ARMOR, IRON_SKIN_ARMOR, pick(skin, 1.0f, 1.5f, 2.0f), AttributeModifier.Operation.ADD_VALUE, skin > 0);
 
 		int bone = level(player, SoulPower.GIANT_BONE);
 		setModifier(player, Attributes.MAX_HEALTH, GIANT_BONE_HEALTH, pick(bone, 2, 4, 6), AttributeModifier.Operation.ADD_VALUE, bone > 0);
@@ -903,15 +914,15 @@ public final class PowerHandler {
 		float base = amount;
 		int claw = level(attacker, SoulPower.BEAR_CLAW);
 		if (claw > 0 && attacker.fallDistance > 0 && !attacker.onGround() && !attacker.onClimbable() && !attacker.isInWater()) {
-			amount += base * pick(claw, 0.20f, 0.30f, 0.40f);
+			amount += base * pick(claw, 0.10f, 0.17f, 0.25f);
 		}
 		int mantis = level(attacker, SoulPower.MANTIS_BLADE);
 		if (mantis > 0 && victim.getHealth() >= victim.getMaxHealth()) {
-			amount += base * pick(mantis, 0.25f, 0.35f, 0.50f);
+			amount += base * pick(mantis, 0.10f, 0.17f, 0.25f);
 		}
 		int axe = level(attacker, SoulPower.EXECUTIONER_AXE);
 		if (axe > 0 && victim.getHealth() < victim.getMaxHealth() * 0.3f) {
-			amount += base * pick(axe, 0.30f, 0.45f, 0.60f);
+			amount += base * pick(axe, 0.10f, 0.17f, 0.25f);
 		}
 		int drum = level(attacker, SoulPower.THUNDER_DRUM);
 		if (drum > 0 && victim.invulnerableTime <= 10) {
@@ -939,11 +950,11 @@ public final class PowerHandler {
 	private float damageReduction(ServerPlayer player, DamageSource source, float amount) {
 		int turtle = level(player, SoulPower.TURTLE_PLATE);
 		if (turtle > 0 && player.isShiftKeyDown()) {
-			amount *= 1.0f - pick(turtle, 0.15f, 0.25f, 0.35f);
+			amount *= 1.0f - pick(turtle, 0.08f, 0.12f, 0.18f);
 		}
 		int obsidian = level(player, SoulPower.OBSIDIAN_SHARD);
 		if (obsidian > 0 && source.is(DamageTypeTags.IS_EXPLOSION)) {
-			amount *= 1.0f - pick(obsidian, 0.30f, 0.50f, 0.70f);
+			amount *= 1.0f - pick(obsidian, 0.15f, 0.25f, 0.35f);
 		}
 		int owl = level(player, SoulPower.OWL_FEATHER);
 		if (owl >= 2 && source.is(DamageTypeTags.IS_FALL)) {
@@ -994,7 +1005,7 @@ public final class PowerHandler {
 	private void onHitNewPowers(ServerPlayer attacker, LivingEntity victim, ServerLevel level, SoulData data, float damageTaken) {
 		int tooth = level(attacker, SoulPower.VAMPIRE_TOOTH);
 		if (tooth > 0) {
-			attacker.heal(damageTaken * pick(tooth, 0.06f, 0.09f, 0.12f));
+			attacker.heal(Math.min(damageTaken * pick(tooth, 0.06f, 0.09f, 0.12f), HEAL_CAP_PER_HIT));
 		}
 
 		int storm = level(attacker, SoulPower.STORM_ROD);

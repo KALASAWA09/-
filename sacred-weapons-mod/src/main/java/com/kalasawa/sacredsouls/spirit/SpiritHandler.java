@@ -152,7 +152,7 @@ public final class SpiritHandler {
 				double radius = pick(fire, 3, 4, 5);
 				for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(radius), e -> enemy(player, e))) {
 					target.igniteForSeconds(3.0f);
-					target.hurtServer(level, level.damageSources().inFire(), pick(fire, 2.0f, 3.0f, 4.0f));
+					target.hurtServer(level, level.damageSources().inFire(), pick(fire, 1.0f, 2.0f, 3.0f));
 				}
 				level.sendParticles(ParticleTypes.FLAME, player.getX(), player.getY() + 0.2, player.getZ(), 16, radius / 2, 0.1, radius / 2, 0.01);
 			}
@@ -227,7 +227,7 @@ public final class SpiritHandler {
 		int lightning = level(player, Spirit.LIGHTNING);
 		if (lightning > 0 && source.getEntity() instanceof LivingEntity attacker && source.getDirectEntity() == attacker
 				&& attacker != player && player.getRandom().nextFloat() < pick(lightning, 0.25f, 0.35f, 0.45f)) {
-			attacker.hurtServer(level, level.damageSources().lightningBolt(), pick(lightning, 4.0f, 6.0f, 8.0f));
+			attacker.hurtServer(level, level.damageSources().lightningBolt(), pick(lightning, 1.0f, 2.0f, 3.0f));
 			level.sendParticles(ParticleTypes.ELECTRIC_SPARK, attacker.getX(), attacker.getY() + 1.0, attacker.getZ(), 20, 0.3, 0.6, 0.3, 0.2);
 			level.playSound(null, attacker.getX(), attacker.getY(), attacker.getZ(), SoundEvents.TRIDENT_THUNDER, SoundSource.PLAYERS, 0.4f, 1.6f);
 		}
