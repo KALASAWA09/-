@@ -18,6 +18,8 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 import com.kalasawa.sacredsouls.SacredSouls;
 import com.kalasawa.sacredsouls.item.SoulItem;
+import com.kalasawa.sacredsouls.item.SpiritItem;
+import com.kalasawa.sacredsouls.spirit.Spirit;
 import com.kalasawa.sacredsouls.network.AirJumpPayload;
 import com.kalasawa.sacredsouls.power.PowerHandler;
 import com.kalasawa.sacredsouls.power.SoulPower;
@@ -68,6 +70,17 @@ public class SacredSoulsClient implements ClientModInitializer {
 					lines.add(Component.translatable("tooltip.sacredsouls.level_line", level, power.effect(level)).withStyle(color));
 				}
 				lines.add(Component.translatable(owned >= 0 ? "tooltip.sacredsouls.owned" : "tooltip.sacredsouls.devour").withStyle(ChatFormatting.LIGHT_PURPLE));
+			} else if (stack.getItem() instanceof SpiritItem spiritItem) {
+				Spirit spirit = spiritItem.spirit;
+				SoulData data = localSoul();
+				int current = data.spirit() == spirit ? data.spiritLevel() : 0;
+				lines.add(Component.translatable("tooltip.sacredsouls.spirit").withStyle(ChatFormatting.AQUA));
+				lines.add(spirit.summary().withStyle(ChatFormatting.WHITE));
+				for (int level = 1; level <= SoulData.MAX_LEVEL; level++) {
+					ChatFormatting color = level == current ? ChatFormatting.GREEN : ChatFormatting.GRAY;
+					lines.add(Component.translatable("tooltip.sacredsouls.level_line", level, spirit.effect(level)).withStyle(color));
+				}
+				lines.add(Component.translatable(current > 0 ? "tooltip.sacredsouls.owned" : "tooltip.sacredsouls.bind_spirit").withStyle(ChatFormatting.LIGHT_PURPLE));
 			}
 		});
 	}

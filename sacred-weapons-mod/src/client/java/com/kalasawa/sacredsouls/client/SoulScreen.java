@@ -16,10 +16,11 @@ import com.kalasawa.sacredsouls.item.ModItems;
 import com.kalasawa.sacredsouls.network.SoulActionPayload;
 import com.kalasawa.sacredsouls.power.SoulPower;
 import com.kalasawa.sacredsouls.soul.SoulData;
+import com.kalasawa.sacredsouls.spirit.Spirit;
 import com.kalasawa.sacredsouls.title.SoulTitle;
 
 /**
- * The soul screen (K). Top: energy, essence, title. Middle: 5 slot boxes.
+ * The soul screen (K). Top: energy, essence, title. Middle: 5 slot boxes and the spirit slot.
  * Bottom: details of the selected slot with Upgrade and Eject.
  */
 public class SoulScreen extends Screen {
@@ -27,6 +28,9 @@ public class SoulScreen extends Screen {
 	private static final int BOX = 30;
 	private static final int GAP = 10;
 	private static final int PANEL_HEIGHT = 96;
+	private static final int SPIRIT_GAP = 20;
+	private static final int SPIRIT = SoulData.SPIRIT_SLOT;
+	private static final int BOXES = SoulData.MAX_SLOTS + 1;
 
 	private static final int WHITE = 0xFFFFFFFF;
 	private static final int LIGHT = 0xFFD8D8E0;
@@ -38,6 +42,7 @@ public class SoulScreen extends Screen {
 	private static final int RED = 0xFFFF6B6B;
 	private static final int PANEL = 0xC0101018;
 	private static final int PANEL_EDGE = 0xFF5A3F8C;
+	private static final int SPIRIT_EDGE = 0xFF4FD8E8;
 
 	private int selected = 0;
 	private String shownState = "";
@@ -59,8 +64,32 @@ public class SoulScreen extends Screen {
 	}
 
 	private int slotX(int i) {
-		int rowWidth = SoulData.MAX_SLOTS * BOX + (SoulData.MAX_SLOTS - 1) * GAP;
-		return (this.width - rowWidth) / 2 + i * (BOX + GAP);
+		int rowWidth = BOXES * BOX + (SoulData.MAX_SLOTS - 1) * GAP + SPIRIT_GAP;
+		int start = (this.width - rowWidth) / 2;
+		return i == SPIRIT ? start + SoulData.MAX_SLOTS * (BOX + GAP) - GAP + SPIRIT_GAP : start + i * (BOX + GAP);
+	}
+
+	/** Icon item of a box, or null when it is empty. */
+	private static ItemStack icon(SoulData data, int i) {
+		if (i == SPIRIT) {
+			Spirit spirit = data.spirit();
+			return spirit == null ? null : new ItemStack(ModItems.SPIRIT_ITEMS.get(spirit));
+		}
+		SoulPower power = data.powerAt(i);
+		return power == null ? null : new ItemStack(ModItems.SOUL_ITEMS.get(power));
+	}
+
+	private static int boxLevel(SoulData data, int i) {
+		return i == SPIRIT ? data.spiritLevel() : i < data.levels.size() ? data.levels.get(i) : 0;
+	}
+
+	private static Component boxName(SoulData data, int i) {
+		if (i == SPIRIT) {
+			Spirit spirit = data.spirit();
+			return spirit == null ? Component.translatable("gui.sacredsouls.empty_spirit") : spirit.displayName();
+		}
+		SoulPower power = data.powerAt(i);
+		return power == null ? Component.translatable("gui.sacredsouls.empty_slot") : power.displayName();
 	}
 
 	private int panelY() {
@@ -68,7 +97,7 @@ public class SoulScreen extends Screen {
 	}
 
 	private static String stateKey(SoulData data) {
-		return data.slots + "|" + data.levels + "|" + data.essence + "|" + data.energy + "|" + data.title;
+		return data.slots + "|" + data.levels + "|" + data.essence + "|" + data.energy + "|" + data.title + "|" + data.spirit;
 	}
 
 	/** Mixes a power colour halfway to white so it reads well on a dark background. */
@@ -83,25 +112,23 @@ public class SoulScreen extends Screen {
 	protected void init() {
 		SoulData data = SacredSoulsClient.localSoul();
 		shownState = stateKey(data);
-		selected = Math.max(0, Math.min(selected, SoulData.MAX_SLOTS - 1));
+		selected = Math.max(0, Math.min(selected, SPIRIT));
 
 		// The slot boxes are plain buttons with no label; the icon is drawn on top in render().
-		for (int i = 0; i < SoulData.MAX_SLOTS; i++) {
+		for (int i = 0; i < BOXES; i++) {
 			final int slot = i;
 			Button box = Button.builder(Component.empty(), b -> {
 				selected = slot;
 				rebuildWidgets();
 			}).bounds(slotX(i), slotsY(), BOX, BOX).build();
-			SoulPower power = data.powerAt(i);
-			box.setTooltip(Tooltip.create(power == null ? Component.translatable("gui.sacredsouls.empty_slot") : power.displayName()));
+			box.setTooltip(Tooltip.create(boxName(data, i)));
 			addRenderableWidget(box);
 		}
 
-		SoulPower power = data.powerAt(selected);
-		if (power == null) {
+		if (icon(data, selected) == null) {
 			return;
 		}
-		int level = data.levels.get(selected);
+		int level = boxLevel(data, selected);
 		int buttonY = panelY() + PANEL_HEIGHT + 6;
 		int x = left();
 		Component upgradeLabel = level >= SoulData.MAX_LEVEL
@@ -144,6 +171,11 @@ public class SoulScreen extends Screen {
 		int sx = slotX(selected);
 		int sy = slotsY();
 		graphics.fill(sx - 2, sy - 2, sx + BOX + 2, sy + BOX + 2, GOLD);
+		// Cyan frame marks the spirit slot when it is not selected.
+		if (selected != SPIRIT) {
+			int px = slotX(SPIRIT);
+			graphics.fill(px - 1, sy - 1, px + BOX + 1, sy + BOX + 1, SPIRIT_EDGE);
+		}
 	}
 
 	@Override
@@ -178,23 +210,29 @@ public class SoulScreen extends Screen {
 		graphics.drawString(this.font, titleLine, x, y + 29, title == null ? DIM : GOLD);
 
 		// Slot icons and level numbers.
-		for (int i = 0; i < SoulData.MAX_SLOTS; i++) {
+		for (int i = 0; i < BOXES; i++) {
 			int sx = slotX(i);
 			int sy = slotsY();
-			SoulPower power = data.powerAt(i);
-			if (power == null) {
-				graphics.drawCenteredString(this.font, "+", sx + BOX / 2, sy + (BOX - 8) / 2, DIM);
+			ItemStack icon = icon(data, i);
+			if (icon == null) {
+				graphics.drawCenteredString(this.font, "+", sx + BOX / 2, sy + (BOX - 8) / 2, i == SPIRIT ? SPIRIT_EDGE : DIM);
 			} else {
-				graphics.renderItem(new ItemStack(ModItems.SOUL_ITEMS.get(power)), sx + (BOX - 16) / 2, sy + (BOX - 16) / 2);
-				String lv = String.valueOf(data.levels.get(i));
+				graphics.renderItem(icon, sx + (BOX - 16) / 2, sy + (BOX - 16) / 2);
+				String lv = String.valueOf(boxLevel(data, i));
 				graphics.drawString(this.font, lv, sx + BOX - 3 - this.font.width(lv), sy + BOX - 10, GOLD);
 			}
 		}
+		Component spiritLabel = Component.translatable("gui.sacredsouls.spirit_slot");
+		graphics.drawCenteredString(this.font, spiritLabel, slotX(SPIRIT) + BOX / 2, slotsY() - 11, SPIRIT_EDGE);
 
 		renderDetails(graphics, data, x + 8, panelY() + 7, WIDTH - 16, title);
 	}
 
 	private void renderDetails(GuiGraphics graphics, SoulData data, int x, int y, int width, SoulTitle title) {
+		if (selected == SPIRIT) {
+			renderSpirit(graphics, data, x, y, width);
+			return;
+		}
 		SoulPower power = data.powerAt(selected);
 		if (power == null) {
 			graphics.drawString(this.font, Component.translatable("gui.sacredsouls.empty_slot"), x, y, WHITE);
@@ -217,6 +255,25 @@ public class SoulScreen extends Screen {
 		y = wrapped(graphics, Component.translatable("gui.sacredsouls.now", power.effect(level)), x, y, width, GREEN);
 		if (level < SoulData.MAX_LEVEL) {
 			wrapped(graphics, Component.translatable("gui.sacredsouls.next", power.effect(level + 1)), x, y + 2, width, DIM);
+		}
+	}
+
+	private void renderSpirit(GuiGraphics graphics, SoulData data, int x, int y, int width) {
+		Spirit spirit = data.spirit();
+		if (spirit == null) {
+			graphics.drawString(this.font, Component.translatable("gui.sacredsouls.empty_spirit"), x, y, WHITE);
+			wrapped(graphics, Component.translatable("gui.sacredsouls.empty_spirit_hint"), x, y + 14, width, LIGHT);
+			return;
+		}
+		int level = data.spiritLevel();
+		graphics.drawString(this.font, spirit.displayName(), x, y, bright(spirit.color));
+		Component levelText = Component.translatable("gui.sacredsouls.level", level, SoulData.MAX_LEVEL);
+		graphics.drawString(this.font, levelText, x + width - this.font.width(levelText), y, GOLD);
+		y = wrapped(graphics, spirit.summary(), x, y + 14, width, WHITE);
+		y += 4;
+		y = wrapped(graphics, Component.translatable("gui.sacredsouls.now", spirit.effect(level)), x, y, width, GREEN);
+		if (level < SoulData.MAX_LEVEL) {
+			wrapped(graphics, Component.translatable("gui.sacredsouls.next", spirit.effect(level + 1)), x, y + 2, width, DIM);
 		}
 	}
 

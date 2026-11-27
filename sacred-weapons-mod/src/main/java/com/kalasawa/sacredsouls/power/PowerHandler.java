@@ -54,6 +54,7 @@ import com.kalasawa.sacredsouls.soul.Effects;
 import com.kalasawa.sacredsouls.soul.LootSources;
 import com.kalasawa.sacredsouls.soul.SoulData;
 import com.kalasawa.sacredsouls.soul.SoulManager;
+import com.kalasawa.sacredsouls.spirit.SpiritHandler;
 import com.kalasawa.sacredsouls.title.SoulTitle;
 import com.kalasawa.sacredsouls.title.TitleManager;
 
@@ -271,6 +272,7 @@ public final class PowerHandler {
 		state.prevFall = fall;
 
 		tickNewPowers(player, level, state);
+		SpiritHandler.tick(player, level, level.getGameTime());
 
 		// เขาแพะหิน: ram while sprinting.
 		int horn = level(player, SoulPower.STONE_HORN);
@@ -312,6 +314,7 @@ public final class PowerHandler {
 
 		applyTitleBuffs(player, level);
 		secondNewPowers(player, level, state);
+		SpiritHandler.second(player, level);
 
 		int eye = level(player, SoulPower.SERPENT_EYE);
 		if (eye > 0) {
@@ -550,6 +553,7 @@ public final class PowerHandler {
 		}
 		if (victim instanceof ServerPlayer player && !source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
 			amount = damageReduction(player, source, amount);
+			amount = SpiritHandler.modifyIncomingDamage(player, source, amount);
 		}
 		if (victim instanceof ServerPlayer player) {
 			int heart = level(player, SoulPower.STONE_HEART);
@@ -702,6 +706,7 @@ public final class PowerHandler {
 		}
 
 		onHitNewPowers(attacker, victim, level, data, damageTaken);
+		SpiritHandler.onHit(attacker, victim);
 
 		int mask = level(attacker, SoulPower.THIEF_MASK);
 		if (mask > 0 && roll(attacker, data, pick(mask, 0.10f, 0.15f, 0.20f))) {

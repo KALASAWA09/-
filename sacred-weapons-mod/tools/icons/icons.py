@@ -703,3 +703,28 @@ icon("soul_codex", {"p": "7a3ab0", "q": "a858e8", "y": "ffcc3a", "w": "f4ecd8"},
     "pqqqqqqqpw.",
     "pppppppppw.",
 ])
+
+# Elemental spirits: one wisp shape, coloured by element.
+WISP = [
+    ".......oo..",
+    "......ooo..",
+    "...oooooo..",
+    "..oiiiiioo.",
+    ".oiiiiiiio.",
+    ".oieiiieio.",
+    ".oieiiieio.",
+    ".oiiiiiiio.",
+    "..oiiiiio..",
+    "...ooooo...",
+    "....o.o....",
+]
+for _name, _o, _i, _e in (
+        ("fire", "ff6a1c", "ffd04a", "7a1a0a"),
+        ("light", "ffe680", "fffbe0", "b07a1a"),
+        ("water", "2a8aff", "9fd8ff", "0a2a6a"),
+        ("wind", "8fe8f0", "e8ffff", "2a7a8a"),
+        ("earth", "5aa83a", "b8e07a", "3a2a10"),
+        ("darkness", "5a2aa0", "9a6ae0", "ffe14a"),
+        ("lightning", "f5c63a", "fff4a0", "3a3a8a"),
+        ("stone", "8a8a96", "c8c8d4", "2a2a34")):
+    icon("spirit_" + _name, {"o": _o, "i": _i, "e": _e}, WISP)

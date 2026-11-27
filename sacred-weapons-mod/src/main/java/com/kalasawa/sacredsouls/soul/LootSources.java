@@ -1,7 +1,10 @@
 package com.kalasawa.sacredsouls.soul;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -12,6 +15,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.stats.Stats;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.animal.wolf.Wolf;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -28,13 +32,14 @@ import net.fabricmc.fabric.api.loot.v3.LootTableEvents;
 
 import com.kalasawa.sacredsouls.item.ModItems;
 import com.kalasawa.sacredsouls.power.SoulPower;
+import com.kalasawa.sacredsouls.spirit.Spirit;
 
 /** Where soul items drop. Mob and chest drops use loot tables; mining, raids and breeding use events. */
 public final class LootSources {
-	private record Drop(SoulPower power, float chance, boolean killedByPlayer) {
+	private record Drop(Supplier<Item> item, float chance, boolean killedByPlayer) {
 	}
 
-	private static final Map<ResourceKey<LootTable>, Drop> TABLE_DROPS = new LinkedHashMap<>();
+	private static final Map<ResourceKey<LootTable>, List<Drop>> TABLE_DROPS = new LinkedHashMap<>();
 
 	static {
 		mob("cave_spider", SoulPower.SERPENT_EYE, 0.04f);
@@ -85,14 +90,32 @@ public final class LootSources {
 		mob("panda", SoulPower.CALM_LOTUS, 0.10f);
 		mob("parrot", SoulPower.CROW_FEATHER, 0.10f);
 		mob("snow_golem", SoulPower.FROST_STEP, 0.08f);
+
+		// Spirits: rare, mostly from structure chests.
+		spirit("chests/nether_bridge", Spirit.FIRE, 0.12f, false);
+		spirit("chests/stronghold_library", Spirit.LIGHT, 0.25f, false);
+		spirit("chests/underwater_ruin_big", Spirit.WATER, 0.12f, false);
+		spirit("chests/trial_chambers/reward_ominous", Spirit.WIND, 0.15f, false);
+		spirit("chests/simple_dungeon", Spirit.EARTH, 0.08f, false);
+		spirit("entities/warden", Spirit.DARKNESS, 0.50f, true);
+		spirit("chests/woodland_mansion", Spirit.LIGHTNING, 0.20f, false);
+		spirit("chests/stronghold_corridor", Spirit.STONE, 0.08f, false);
+	}
+
+	private static void add(String table, Drop drop) {
+		TABLE_DROPS.computeIfAbsent(ResourceKey.create(Registries.LOOT_TABLE, Identifier.withDefaultNamespace(table)), k -> new ArrayList<>()).add(drop);
 	}
 
 	private static void mob(String entity, SoulPower power, float chance) {
-		TABLE_DROPS.put(ResourceKey.create(Registries.LOOT_TABLE, Identifier.withDefaultNamespace("entities/" + entity)), new Drop(power, chance, true));
+		add("entities/" + entity, new Drop(() -> ModItems.SOUL_ITEMS.get(power), chance, true));
 	}
 
 	private static void chest(String chest, SoulPower power, float chance) {
-		TABLE_DROPS.put(ResourceKey.create(Registries.LOOT_TABLE, Identifier.withDefaultNamespace("chests/" + chest)), new Drop(power, chance, false));
+		add("chests/" + chest, new Drop(() -> ModItems.SOUL_ITEMS.get(power), chance, false));
+	}
+
+	private static void spirit(String table, Spirit spirit, float chance, boolean killedByPlayer) {
+		add(table, new Drop(() -> ModItems.SPIRIT_ITEMS.get(spirit), chance, killedByPlayer));
 	}
 
 	private LootSources() {
@@ -100,18 +123,20 @@ public final class LootSources {
 
 	public static void init() {
 		LootTableEvents.MODIFY.register((key, tableBuilder, source, registries) -> {
-			Drop drop = TABLE_DROPS.get(key);
-			if (drop == null || !source.isBuiltin()) {
+			List<Drop> drops = TABLE_DROPS.get(key);
+			if (drops == null || !source.isBuiltin()) {
 				return;
 			}
-			LootPool.Builder pool = LootPool.lootPool()
-					.setRolls(ConstantValue.exactly(1))
-					.add(LootItem.lootTableItem(ModItems.SOUL_ITEMS.get(drop.power())))
-					.when(LootItemRandomChanceCondition.randomChance(drop.chance()));
-			if (drop.killedByPlayer()) {
-				pool.when(LootItemKilledByPlayerCondition.killedByPlayer());
+			for (Drop drop : drops) {
+				LootPool.Builder pool = LootPool.lootPool()
+						.setRolls(ConstantValue.exactly(1))
+						.add(LootItem.lootTableItem(drop.item().get()))
+						.when(LootItemRandomChanceCondition.randomChance(drop.chance()));
+				if (drop.killedByPlayer()) {
+					pool.when(LootItemKilledByPlayerCondition.killedByPlayer());
+				}
+				tableBuilder.withPool(pool);
 			}
-			tableBuilder.withPool(pool);
 		});
 
 		PlayerBlockBreakEvents.AFTER.register((level, player, pos, state, blockEntity) -> {

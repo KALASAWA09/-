@@ -18,6 +18,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import com.kalasawa.sacredsouls.SacredSouls;
 import com.kalasawa.sacredsouls.item.ModItems;
 import com.kalasawa.sacredsouls.power.SoulPower;
+import com.kalasawa.sacredsouls.spirit.Spirit;
 import com.kalasawa.sacredsouls.title.SoulTitle;
 import com.kalasawa.sacredsouls.title.TitleManager;
 
@@ -85,6 +86,35 @@ public final class SoulManager {
 		return true;
 	}
 
+	/** Binds a spirit to the spirit slot. Returns true when the item was used up. */
+	public static boolean bindSpirit(ServerPlayer player, Spirit spirit) {
+		SoulData data = get(player).copy();
+		if (data.isSoulless()) {
+			say(player, msg("soulless_cant_devour").withStyle(ChatFormatting.RED));
+			return false;
+		}
+		Spirit current = data.spirit();
+		int gain = 0;
+		if (current == spirit) {
+			gain = essenceGain(data, 5);
+			data.essence += gain;
+		} else if (current == null) {
+			data.setSpirit(spirit, 1);
+		} else {
+			say(player, msg("spirit_full", current.displayName()).withStyle(ChatFormatting.RED));
+			return false;
+		}
+		set(player, data);
+		effects(player);
+		afterDevour(player);
+		if (gain > 0) {
+			say(player, msg("devour_again", spirit.displayName(), gain).withStyle(ChatFormatting.AQUA));
+		} else {
+			say(player, msg("spirit_bound", spirit.displayName(), spirit.summary()).withStyle(ChatFormatting.AQUA));
+		}
+		return true;
+	}
+
 	/** Swallow, then 2 seconds of darkness with a heartbeat. */
 	private static void afterDevour(ServerPlayer player) {
 		ServerLevel level = (ServerLevel) player.level();
@@ -101,6 +131,10 @@ public final class SoulManager {
 	}
 
 	public static void upgrade(ServerPlayer player, int slot) {
+		if (slot == SoulData.SPIRIT_SLOT) {
+			upgradeSpirit(player);
+			return;
+		}
 		SoulData data = get(player).copy();
 		SoulPower power = data.powerAt(slot);
 		if (power == null || data.isSoulless()) {
@@ -125,8 +159,58 @@ public final class SoulManager {
 		say(player, msg("upgraded", power.displayName(), level + 1, power.effect(level + 1)).withStyle(ChatFormatting.GOLD));
 	}
 
+	private static void upgradeSpirit(ServerPlayer player) {
+		SoulData data = get(player).copy();
+		Spirit spirit = data.spirit();
+		if (spirit == null || data.isSoulless()) {
+			return;
+		}
+		int level = data.spiritLevel();
+		if (level >= SoulData.MAX_LEVEL) {
+			say(player, msg("max_level", spirit.displayName()).withStyle(ChatFormatting.GRAY));
+			return;
+		}
+		int cost = SoulData.upgradeCost(level);
+		if (data.essence < cost) {
+			say(player, msg("not_enough_essence", cost, data.essence).withStyle(ChatFormatting.RED));
+			return;
+		}
+		data.essence -= cost;
+		data.setSpirit(spirit, level + 1);
+		set(player, data);
+		ServerLevel serverLevel = (ServerLevel) player.level();
+		serverLevel.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ENCHANTMENT_TABLE_USE, SoundSource.PLAYERS, 1.0f, 1.0f);
+		serverLevel.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, player.getX(), player.getY() + 1.0, player.getZ(), 30, 0.5, 0.8, 0.5, 0.03);
+		say(player, msg("upgraded", spirit.displayName(), level + 1, spirit.effect(level + 1)).withStyle(ChatFormatting.GOLD));
+	}
+
+	/** Uses up one cleansing water (not needed in creative). Returns false and tells the player when they have none. */
+	private static boolean useCleansingWater(ServerPlayer player) {
+		for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+			if (player.getInventory().getItem(i).is(ModItems.CLEANSING_WATER)) {
+				player.getInventory().getItem(i).shrink(1);
+				return true;
+			}
+		}
+		if (player.isCreative()) {
+			return true;
+		}
+		say(player, msg("need_water").withStyle(ChatFormatting.RED));
+		return false;
+	}
+
 	public static void eject(ServerPlayer player, int slot) {
 		SoulData data = get(player).copy();
+		if (slot == SoulData.SPIRIT_SLOT) {
+			Spirit spirit = data.spirit();
+			if (spirit == null || !useCleansingWater(player)) {
+				return;
+			}
+			data.setSpirit(null, 0);
+			set(player, data);
+			say(player, msg("ejected", spirit.displayName()).withStyle(ChatFormatting.YELLOW));
+			return;
+		}
 		SoulPower power = data.powerAt(slot);
 		if (power == null) {
 			return;
