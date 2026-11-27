@@ -132,7 +132,7 @@ public final class SkillHandler {
 
 	private static void hit(ServerLevel level, ServerPlayer player, LivingEntity target, float amount) {
 		target.invulnerableTime = 0;
-		target.hurtServer(level, level.damageSources().explosion(null, player), amount);
+		target.hurtServer(level, level.damageSources().explosion(null, player), amount * (float) SkillConfig.damageMultiplier);
 	}
 
 	// ---------------------------------------------------------------- cooldowns
