@@ -589,6 +589,7 @@ public final class PowerHandler {
 			}
 			amount = meleeBonus(attacker, victim, amount);
 			amount = SpiritHandler.modifyOutgoingDamage(attacker, victim, amount);
+			amount = com.kalasawa.sacredsouls.skill.SkillHandler.modifyOutgoing(attacker, amount);
 		}
 		if (victim instanceof ServerPlayer player && !source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
 			amount = damageReduction(player, source, amount);
@@ -749,6 +750,7 @@ public final class PowerHandler {
 
 		onHitNewPowers(attacker, victim, level, data, damageTaken);
 		SpiritHandler.onHit(attacker, victim);
+		com.kalasawa.sacredsouls.skill.SkillHandler.onHit(attacker, victim, damageTaken);
 
 		int mask = level(attacker, SoulPower.THIEF_MASK);
 		if (mask > 0 && roll(attacker, data, pick(mask, 0.10f, 0.15f, 0.20f))) {

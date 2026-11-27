@@ -23,6 +23,12 @@ public final class ModAttachments {
 			.initializer(Map::of)
 			.persistent(Codec.unboundedMap(Codec.STRING, Codec.STRING)));
 
+	/** Game time when the Spirit King ultimate is ready again. Kept across logout and restarts. */
+	public static final AttachmentType<Long> ULTIMATE_READY = AttachmentRegistry.create(SacredSouls.id("ultimate_ready"), builder -> builder
+			.initializer(() -> 0L)
+			.persistent(Codec.LONG)
+			.copyOnDeath());
+
 	private ModAttachments() {
 	}
 
