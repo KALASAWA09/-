@@ -6,7 +6,6 @@ import java.util.UUID;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
-import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.Identifier;
@@ -74,16 +73,17 @@ public final class SpiritHandler {
 		return player.level().getMaxLocalRawBrightness(player.blockPosition()) <= 7;
 	}
 
-	private static ParticleOptions particle(Spirit spirit, ServerPlayer player) {
+	private static ParticleOptions particle(Spirit spirit, ServerPlayer player, int mote) {
 		return switch (spirit) {
 			case FIRE -> ParticleTypes.FLAME;
 			case LIGHT -> ParticleTypes.END_ROD;
 			// Bubbles only live in water; in air they show as popping bubbles.
 			case WATER -> player.isInWater() ? ParticleTypes.BUBBLE : ParticleTypes.BUBBLE_POP;
-			case DEATH -> ParticleTypes.SOUL;
+			// Black smoke mixed with blue soul fire.
+			case DEATH -> mote % 2 == 0 ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.SMOKE;
 			case EARTH -> ParticleTypes.COMPOSTER;
-			// The dark swirls of the Wither effect, made nearly black.
-			case DARKNESS -> ColorParticleOption.create(ParticleTypes.ENTITY_EFFECT, 0xFF231820);
+			// The black smoke a Wither Rose gives off.
+			case DARKNESS -> ParticleTypes.SMOKE;
 			case LIGHTNING -> ParticleTypes.ELECTRIC_SPARK;
 			case STONE -> ParticleTypes.WHITE_ASH;
 		};
@@ -104,13 +104,12 @@ public final class SpiritHandler {
 			return;
 		}
 		int motes = spirit == Spirit.LIGHT ? 1 : data.spiritLevel() >= 3 ? 3 : 2;
-		ParticleOptions particle = particle(spirit, player);
 		for (int i = 0; i < motes; i++) {
 			double angle = time * 0.18 + i * (Math.PI * 2 / motes);
 			double height = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(time * 0.07 + i * 2.1));
 			double x = player.getX() + Math.cos(angle) * 0.8;
 			double z = player.getZ() + Math.sin(angle) * 0.8;
-			level.sendParticles(particle, x, player.getY() + height, z, 1, 0.0, 0.0, 0.0, 0.0);
+			level.sendParticles(particle(spirit, player, i), x, player.getY() + height, z, 1, 0.0, 0.0, 0.0, 0.0);
 		}
 	}
 
