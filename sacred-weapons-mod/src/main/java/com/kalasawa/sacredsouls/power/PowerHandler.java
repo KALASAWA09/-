@@ -550,6 +550,7 @@ public final class PowerHandler {
 				amount *= pick(ember, 1.3f, 1.4f, 1.5f);
 			}
 			amount = meleeBonus(attacker, victim, amount);
+			amount = SpiritHandler.modifyOutgoingDamage(attacker, victim, amount);
 		}
 		if (victim instanceof ServerPlayer player && !source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
 			amount = damageReduction(player, source, amount);
@@ -1021,6 +1022,9 @@ public final class PowerHandler {
 
 	/** Returns false to cancel the death (ผู้พิทักษ์). */
 	public boolean allowDeath(LivingEntity entity, DamageSource source) {
+		if (entity instanceof ServerPlayer spiritOwner && !SpiritHandler.allowDeath(spiritOwner)) {
+			return false;
+		}
 		if (!(entity instanceof ServerPlayer player) || title(player) != SoulTitle.GUARDIAN) {
 			return true;
 		}
