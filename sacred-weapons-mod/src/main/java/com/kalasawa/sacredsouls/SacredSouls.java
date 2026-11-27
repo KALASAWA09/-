@@ -49,6 +49,7 @@ public class SacredSouls implements ModInitializer {
 		PayloadTypeRegistry.playC2S().register(AirJumpPayload.TYPE, AirJumpPayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(SkillCastPayload.TYPE, SkillCastPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(SkillCooldownPayload.TYPE, SkillCooldownPayload.CODEC);
+		PayloadTypeRegistry.playS2C().register(com.kalasawa.sacredsouls.network.KingCastPayload.TYPE, com.kalasawa.sacredsouls.network.KingCastPayload.CODEC);
 
 		ServerPlayNetworking.registerGlobalReceiver(SoulActionPayload.TYPE, (payload, context) -> {
 			if (payload.action() == SoulActionPayload.UPGRADE) {

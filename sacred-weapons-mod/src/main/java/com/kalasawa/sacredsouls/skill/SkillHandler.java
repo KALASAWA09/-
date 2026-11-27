@@ -1132,19 +1132,27 @@ public final class SkillHandler {
 			});
 		}
 
-		// ---- Spirit King: พิพากษาแปดธาตุ. A great circle in the sky, eight elements merge and fall like a
-		// bomb: a blinding flash, a shockwave rolling out to the full radius (150 blocks by default),
-		// a mushroom cloud, and burning, poisoned ground afterwards.
+		// ---- Spirit King: พิพากษาแปดธาตุ. The clients draw the spectacle (see KingEffects); the server runs the
+		// timeline: the warning, the pull, the silence, the flash, three waves that strike as they pass, the
+		// crater, and the poisoned, burning ground afterwards.
 		void king() {
 			int radius = SkillConfig.ultimateRadius;
-			double circle = Math.min(radius * 0.85, 45.0);
-			Vec3 sky = start.add(0, 40, 0);
+			int pauseStart = castTicks - 24;
 			if (age == 0) {
 				MinecraftServer server = level.getServer();
 				Component text = SoulManager.msg("king_casting", player.getName(),
 						(int) start.x, (int) start.y, (int) start.z).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
 				server.getPlayerList().broadcastSystemMessage(text, false);
-				everyone(SoundEvents.WITHER_SPAWN, 0.5f, 0.8f, -1);
+				com.kalasawa.sacredsouls.network.KingCastPayload payload =
+						new com.kalasawa.sacredsouls.network.KingCastPayload(start.x, start.y, start.z, radius, castTicks);
+				for (ServerPlayer other : level.players()) {
+					if (other.position().distanceTo(start) <= radius * 3 + 128
+							&& ServerPlayNetworking.canSend(other, com.kalasawa.sacredsouls.network.KingCastPayload.TYPE)) {
+						ServerPlayNetworking.send(other, payload);
+					}
+				}
+				everyone(SoundEvents.WITHER_SPAWN, 0.7f, 0.6f, -1);
+				everyone(SoundEvents.ELDER_GUARDIAN_CURSE, 1.0f, 0.5f, radius * 1.5);
 			}
 			if (age < castTicks) {
 				if (player.getHealth() < startHealth - 12.0f) {
@@ -1157,145 +1165,76 @@ public final class SkillHandler {
 				Effects.keep(player, "slowness", 3, 5);
 				Effects.keep(player, "slow_falling", 0, 5);
 				double progress = (double) age / castTicks;
-				double ringRadius = circle * Math.min(1.0, 0.4 + progress * 1.5);
-				// The circle in the sky: three rings and an eight-point star, turning slowly.
-				double phase = age * 0.01;
-				if (age % 2 == 0) {
-					farRing(level, KING_GOLD, sky, ringRadius, 20, phase + level.random.nextDouble(), 0.3);
-					farRing(level, KING_GOLD, sky, ringRadius * 0.88, 14, -phase + level.random.nextDouble(), 0.3);
-					farRing(level, KING_GOLD, sky, ringRadius * 0.45, 8, phase * 2 + level.random.nextDouble(), 0.2);
+				// A heartbeat that quickens as the circle fills.
+				int beat = Math.max(5, (int) (24 - 18 * progress));
+				if (age < pauseStart && age % beat == 0) {
+					everyone(SoundEvents.WARDEN_HEARTBEAT, 1.0f, 0.6f + (float) progress * 0.5f, radius * 1.5);
 				}
-				if (age % 10 == 0) {
-					for (int i = 0; i < 8; i++) {
-						double a = phase + i * Math.PI / 4;
-						double b = a + Math.PI * 3 / 4;
-						Vec3 from = sky.add(Math.cos(a) * ringRadius * 0.88, 0, Math.sin(a) * ringRadius * 0.88);
-						Vec3 to = sky.add(Math.cos(b) * ringRadius * 0.88, 0, Math.sin(b) * ringRadius * 0.88);
-						for (int k = 0; k <= 10; k++) {
-							far(KING_GOLD, from.add(to.subtract(from).scale(k / 10.0)), 1, 0, 0, 0, 0);
-						}
-					}
-					// The shadow on the ground shows how far the blast will reach.
-					farRing(level, KING_SHADOW, start.add(0, 0.5, 0), radius, Math.min(160, radius), phase, 0.0);
+				if (age % 40 == 0 && age < pauseStart) {
+					sound(level, start, SoundEvents.BEACON_AMBIENT, 8.0f, 0.5f + (float) progress);
+					everyone(SoundEvents.RESPAWN_ANCHOR_CHARGE, 0.8f, 0.5f + (float) progress * 0.5f, radius * 1.2);
 				}
-				// Beams from the circle down to the caster, one per element.
-				if (age % 5 == 0) {
-					Spirit[] spirits = Spirit.values();
-					Spirit beam = spirits[(age / 5) % spirits.length];
-					double angle = age * 0.05 + (age / 5) * Math.PI / 4;
-					Vec3 top = sky.add(Math.cos(angle) * ringRadius, 0, Math.sin(angle) * ringRadius);
-					line(level, new DustParticleOptions(beam.color, 2.0f), top, start.add(0, 2, 0), 2.0);
+				if (age == castTicks / 2) {
+					everyone(SoundEvents.ENDER_DRAGON_GROWL, 1.0f, 0.5f, radius * 2);
 				}
-				// The eight elements orbit, faster and faster, and spiral in during the last part.
-				double spin = age * (0.02 + 0.12 * progress * progress);
-				double orbit = progress < 0.6 ? ringRadius * 1.05 : ringRadius * 1.05 * Mth.clamp((1.0 - progress) / 0.4, 0, 1);
-				Spirit[] spirits = Spirit.values();
-				for (int i = 0; i < spirits.length; i++) {
-					double angle = spin + i * Math.PI / 4;
-					Vec3 at = sky.add(Math.cos(angle) * orbit, 0, Math.sin(angle) * orbit);
-					far(spiritParticle(spirits[i]), at, 2, 0.6, 0.6, 0.6, 0.01);
-					far(new DustParticleOptions(spirits[i].color, 4.0f), at, 1, 0.8, 0.8, 0.8, 0);
-				}
-				// The last two seconds: the core drinks in the world. Enemies near the centre are dragged in.
-				if (castTicks - age <= 40) {
-					double pull = radius * 0.3;
-					for (LivingEntity enemy : enemiesNear(player, start, pull)) {
+				// The last part of the cast drags enemies near the centre inwards.
+				if (age >= castTicks - 50 && age < pauseStart) {
+					for (LivingEntity enemy : enemiesNear(player, start, radius * 0.3)) {
 						knock(enemy, start, -0.12, 0.0);
 						Effects.give(enemy, "slowness", 1, 10);
 					}
-					if (age % 2 == 0) {
-						for (int i = 0; i < 12; i++) {
-							double angle = level.random.nextDouble() * Math.PI * 2;
-							double r = pull * (0.5 + level.random.nextDouble() * 0.5);
-							Vec3 from = start.add(Math.cos(angle) * r, 1.0 + level.random.nextDouble() * 6, Math.sin(angle) * r);
-							Vec3 inward = start.add(0, 3, 0).subtract(from).normalize();
-							far(ParticleTypes.END_ROD, from, 0, inward.x, inward.y, inward.z, 1.5);
-						}
-					}
 				}
-				if (age % 20 == 0) {
-					sound(level, start, SoundEvents.BEACON_AMBIENT, 6.0f, 0.5f + (float) progress);
-				}
-				if (age == castTicks - 20) {
-					everyone(SoundEvents.ENDER_DRAGON_GROWL, 1.0f, 0.5f, radius * 2);
+				if (age == pauseStart) {
+					// Silence, then the charge of the final blow.
+					everyone(SoundEvents.WARDEN_SONIC_CHARGE, 1.0f, 0.5f, radius * 2);
+					everyone(SoundEvents.BEACON_DEACTIVATE, 1.0f, 0.5f, radius * 2);
 				}
 				return;
 			}
 			int step = age - castTicks;
-			double front = Math.min(radius, step * (radius / 40.0));
 			if (step == 0) {
-				// Impact: the merged core falls as a pillar, and the sky goes white.
-				for (double y = 0; y <= 40; y += 1.0) {
-					far(KING_CORE, start.add(0, y, 0), 3, 1.0, 0.3, 1.0, 0);
-					far(ParticleTypes.END_ROD, start.add(0, y, 0), 2, 0.6, 0.3, 0.6, 0.05);
-				}
-				far(ParticleTypes.EXPLOSION_EMITTER, start.add(0, 2, 0), 12, 6.0, 3.0, 6.0, 0);
-				far(KING_CORE, start.add(0, 8, 0), 200, 10.0, 8.0, 10.0, 0);
-				far(ParticleTypes.FIREWORK, start.add(0, 6, 0), 200, 6.0, 6.0, 6.0, 0.6);
-				everyone(SoundEvents.GENERIC_EXPLODE, 1.0f, 0.4f, radius * 3);
+				everyone(SoundEvents.GENERIC_EXPLODE, 1.0f, 0.35f, radius * 3);
 				everyone(SoundEvents.LIGHTNING_BOLT_THUNDER, 1.0f, 0.5f, radius * 3);
+				everyone(SoundEvents.END_PORTAL_SPAWN, 1.0f, 0.6f, radius * 3);
 				everyone(SoundEvents.WARDEN_SONIC_BOOM, 1.0f, 0.5f, radius * 2);
-				// The flash blinds everyone else who is looking on from inside the blast.
-				for (ServerPlayer other : level.players()) {
-					if (other != player && !other.isCreative() && !other.isSpectator() && other.position().distanceTo(start) <= radius * 1.2) {
-						Effects.give(other, "blindness", 0, 40);
-						Effects.give(other, "nausea", 0, 100);
-					}
-				}
 			}
-			// The shockwave front rolls outward over two seconds; three blasts strike as it passes.
-			if (step <= 40 && step % 2 == 0) {
-				Spirit[] spirits = Spirit.values();
-				int points = (int) Math.min(220, 24 + front * 1.4);
-				for (int i = 0; i < points; i++) {
-					double angle = i * Math.PI * 2 / points + step * 0.02;
-					Vec3 at = start.add(Math.cos(angle) * front, 1.5, Math.sin(angle) * front);
-					far(new DustParticleOptions(spirits[i % spirits.length].color, 4.0f), at, 1, 0.6, 1.2, 0.6, 0);
-					if (i % 4 == 0) {
-						far(ParticleTypes.CLOUD, at.add(0, -1.0, 0), 1, 0.5, 0.3, 0.5, 0.08);
-					}
-					if (i % 16 == 0) {
-						far(ParticleTypes.EXPLOSION, at, 1, 0.5, 0.5, 0.5, 0);
-					}
-				}
-			}
-			double[] waves = {0.3, 0.6, 1.0};
+			// Three waves, 22 ticks apart. Each rolls out over 14 ticks and strikes what its front passes.
+			double[] reach = {radius / 3.0, radius * 2.0 / 3.0, radius};
 			for (int w = 0; w < 3; w++) {
-				if (step == (int) Math.round(waves[w] * 40)) {
-					wave(w, radius * waves[w], w == 0 ? 0 : radius * waves[w - 1], radius);
+				int local = step - w * 22;
+				if (local < 0 || local > 14) {
+					continue;
 				}
-			}
-			// The mushroom cloud: a stem of smoke and fire rising to 60 blocks, then a wide cap.
-			if (step < 140 && step % 2 == 0) {
-				double rise = Math.min(1.0, step / 60.0);
-				double top = 60.0 * rise;
-				for (double y = 2; y < top; y += 4) {
-					far(ParticleTypes.CAMPFIRE_SIGNAL_SMOKE, start.add(0, y, 0), 1, 2.5, 1.5, 2.5, 0.01);
-					if (y < top * 0.5) {
-						far(FIRE_CORE, start.add(0, y, 0), 1, 2.0, 1.5, 2.0, 0);
+				double from = w == 0 ? 0 : reach[w - 1];
+				double front = from + (reach[w] - from) * Math.sqrt(local / 14.0);
+				if (local == 0) {
+					marked.clear();
+					if (w > 0) {
+						everyone(SoundEvents.GENERIC_EXPLODE, 1.0f, 0.45f + w * 0.05f, radius * 3);
+						everyone(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.8f, 0.6f, radius * 3);
+					}
+					if (SkillConfig.ultimateBreaksBlocks) {
+						BlockChanges.queue(new CraterJob(level, player, start, from, reach[w], radius,
+								SkillConfig.ultimateRegrowSeconds * 20 + w * 40));
 					}
 				}
-				double cap = 8.0 + 18.0 * rise;
-				for (int band = 0; band < 3; band++) {
-					double r = cap * (1.0 - band * 0.3);
-					farRing(level, band == 0 ? ASH_DUST : FIRE_DUST, start.add(0, top + band * 3.0, 0), r, (int) (10 + r * 1.2), step * 0.05 + band, 2.0);
+				// Each wave strikes everything inside its front once, so the centre takes all three.
+				for (LivingEntity enemy : enemiesNear(player, start, front + 1.0)) {
+					if (!marked.contains(enemy)) {
+						marked.add(enemy);
+						strikeWave(enemy, w);
+					}
 				}
-				far(ParticleTypes.CAMPFIRE_SIGNAL_SMOKE, start.add(0, top + 4, 0), 6, cap * 0.5, 2.0, cap * 0.5, 0.02);
 			}
-			// Fallout: ash drifts down and the inner ground stays poisonous for ten seconds.
-			if (step >= 40 && step < 240) {
-				if (step % 4 == 0) {
-					far(ParticleTypes.WHITE_ASH, start.add(0, 20, 0), 60, radius * 0.4, 10.0, radius * 0.4, 0.0);
-					far(ParticleTypes.ASH, start.add(0, 10, 0), 60, radius * 0.3, 6.0, radius * 0.3, 0.0);
-				}
+			// Fallout: the inner ground stays poisonous for ten seconds, and fires break out.
+			if (step >= 60 && step < 260) {
 				if (step % 20 == 0) {
 					for (LivingEntity enemy : enemiesNear(player, start, radius * 0.5)) {
 						Effects.give(enemy, "wither", 1, 40);
 						Effects.give(enemy, "hunger", 1, 40);
 					}
 				}
-				if (step == 60) {
-					// Fires break out across the scorched ground.
+				if (step == 70) {
 					for (int i = 0; i < 80; i++) {
 						double angle = level.random.nextDouble() * Math.PI * 2;
 						double r = radius * Math.sqrt(level.random.nextDouble()) * 0.8;
@@ -1304,9 +1243,20 @@ public final class SkillHandler {
 					}
 				}
 			}
-			if (step >= 240) {
+			if (step >= 260) {
 				done = true;
 			}
+		}
+
+		/** One wave's blow: eight hearts, half of it magic that no armor stops, flung outward and set alight. */
+		void strikeWave(LivingEntity enemy, int index) {
+			hit(level, player, enemy, 8.0f);
+			if (enemy.isAlive()) {
+				enemy.invulnerableTime = 0;
+				enemy.hurtServer(level, level.damageSources().magic(), 8.0f);
+			}
+			enemy.igniteForSeconds(4.0f);
+			knock(enemy, start, 1.4 + index * 0.3, 0.7);
 		}
 
 		/** Plays a sound at every player in this dimension within range (any distance when range is negative). */
@@ -1326,20 +1276,6 @@ public final class SkillHandler {
 			}
 		}
 
-		void wave(int index, double radius, double inner, double full) {
-			// Eight hearts a wave. Half of it is magic, which no armor stops, so nobody survives three waves.
-			for (LivingEntity enemy : enemiesNear(player, start, radius)) {
-				hit(level, player, enemy, 8.0f);
-				enemy.invulnerableTime = 0;
-				enemy.hurtServer(level, level.damageSources().magic(), 8.0f);
-				enemy.igniteForSeconds(4.0f);
-				knock(enemy, start, 1.6, 0.8);
-			}
-			if (SkillConfig.ultimateBreaksBlocks) {
-				BlockChanges.queue(new CraterJob(level, player, start, inner, radius, full,
-						SkillConfig.ultimateRegrowSeconds * 20 + index * 40));
-			}
-		}
 	}
 
 	/**

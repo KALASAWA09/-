@@ -45,6 +45,7 @@ public class SacredSoulsClient implements ClientModInitializer {
 		KeyMapping.Category category = KeyMapping.Category.register(SacredSouls.id("souls"));
 		openSoul = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.sacredsouls.open_soul", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, category));
 		SkillClient.init(category);
+		KingEffects.init();
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (client.player == null) {
@@ -57,6 +58,7 @@ public class SacredSoulsClient implements ClientModInitializer {
 			}
 			tickAirJump(client, client.player);
 			SkillClient.tick(client);
+			KingEffects.tick(client);
 		});
 
 		ItemTooltipCallback.EVENT.register((stack, context, type, lines) -> {
