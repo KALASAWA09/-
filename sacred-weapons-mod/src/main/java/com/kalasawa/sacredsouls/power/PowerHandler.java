@@ -456,7 +456,10 @@ public final class PowerHandler {
 		switch (title) {
 			case WAR_GOD -> Effects.keep(player, "resistance", 0, 40);
 			case HEIR -> Effects.keep(player, "health_boost", 0, 40);
-			case NAMELESS_SHADOW -> Effects.keep(player, "night_vision", 0, 260);
+			case NAMELESS_SHADOW -> {
+				Effects.keep(player, "night_vision", 0, 260);
+				Effects.keep(player, "speed", 0, 40);
+			}
 			case GUARDIAN -> {
 				Effects.keep(player, "hero_of_the_village", 0, 40);
 				for (ServerPlayer ally : allies(player, level)) {

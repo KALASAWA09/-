@@ -11,7 +11,7 @@ public enum SoulTitle {
 	DEVOURER("devourer"),
 	SPIRIT_KING("spirit_king"),
 	BERSERKER("berserker"),
-	NAMELESS_SHADOW("nameless_shadow"),
+	NAMELESS_SHADOW("nameless_shadow"), // Shown as Shadow Assassin; id kept for saved data.
 	GUARDIAN("guardian"),
 	BORDERLESS("borderless");
 
