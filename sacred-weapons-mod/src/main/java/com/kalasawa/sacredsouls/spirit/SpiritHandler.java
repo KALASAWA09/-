@@ -73,11 +73,12 @@ public final class SpiritHandler {
 		return player.level().getMaxLocalRawBrightness(player.blockPosition()) <= 7;
 	}
 
-	private static ParticleOptions particle(Spirit spirit) {
+	private static ParticleOptions particle(Spirit spirit, ServerPlayer player) {
 		return switch (spirit) {
 			case FIRE -> ParticleTypes.FLAME;
 			case LIGHT -> ParticleTypes.END_ROD;
-			case WATER -> ParticleTypes.FALLING_WATER;
+			// Bubbles only live in water; in air they show as popping bubbles.
+			case WATER -> player.isInWater() ? ParticleTypes.BUBBLE : ParticleTypes.BUBBLE_POP;
 			case DEATH -> ParticleTypes.SOUL;
 			case EARTH -> ParticleTypes.COMPOSTER;
 			case DARKNESS -> ParticleTypes.SMOKE; // the black smoke an End portal gives off
@@ -96,8 +97,12 @@ public final class SpiritHandler {
 		if (spirit == null || data.isSoulless()) {
 			return;
 		}
-		int motes = data.spiritLevel() >= 3 ? 3 : 2;
-		ParticleOptions particle = particle(spirit);
+		// Light motes linger and glow, so the light aura is kept thin.
+		if (spirit == Spirit.LIGHT && time % 9 != 0) {
+			return;
+		}
+		int motes = spirit == Spirit.LIGHT ? 1 : data.spiritLevel() >= 3 ? 3 : 2;
+		ParticleOptions particle = particle(spirit, player);
 		for (int i = 0; i < motes; i++) {
 			double angle = time * 0.18 + i * (Math.PI * 2 / motes);
 			double height = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(time * 0.07 + i * 2.1));
