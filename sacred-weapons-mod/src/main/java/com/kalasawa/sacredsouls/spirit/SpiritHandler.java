@@ -60,6 +60,9 @@ public final class SpiritHandler {
 	private static final ParticleOptions SHADOW_DUST = new DustParticleOptions(0x1C0A2A, 1.1f);
 	private static final Map<UUID, Long> DARK_BLIND_READY = new HashMap<>();
 	private static final Map<UUID, Long> DARK_AMBUSH_READY = new HashMap<>();
+	private static final ParticleOptions SPARK_DUST = new DustParticleOptions(0xFFF27A, 0.7f);
+	private static final Map<UUID, Long> SPARK_READY = new HashMap<>();
+	private static final Map<UUID, Long> BOLT_READY = new HashMap<>();
 	private static final ParticleOptions GOLD_DUST = new DustParticleOptions(0xFFD86B, 0.8f);
 
 	private SpiritHandler() {
@@ -125,7 +128,8 @@ public final class SpiritHandler {
 			case EARTH -> ParticleTypes.COMPOSTER;
 			// Black shadow smoke with deep purple-black specks.
 			case DARKNESS -> mote % 2 == 0 ? ParticleTypes.SMOKE : SHADOW_DUST;
-			case LIGHTNING -> ParticleTypes.ELECTRIC_SPARK;
+			// Pale blue and yellow crackles.
+			case LIGHTNING -> mote % 2 == 0 ? ParticleTypes.ELECTRIC_SPARK : SPARK_DUST;
 			case STONE -> ParticleTypes.WHITE_ASH;
 		};
 	}
@@ -232,8 +236,8 @@ public final class SpiritHandler {
 
 		// Lightning: fast feet and faster swings.
 		int lightning = level(player, Spirit.LIGHTNING);
-		setModifier(player, Attributes.MOVEMENT_SPEED, LIGHTNING_SPEED, pick(lightning, 0.10f, 0.15f, 0.20f), AttributeModifier.Operation.ADD_MULTIPLIED_BASE, lightning > 0);
-		setModifier(player, Attributes.ATTACK_SPEED, LIGHTNING_ATTACK_SPEED, pick(lightning, 0.20f, 0.30f, 0.40f), AttributeModifier.Operation.ADD_MULTIPLIED_BASE, lightning > 0);
+		setModifier(player, Attributes.MOVEMENT_SPEED, LIGHTNING_SPEED, lightning >= 3 ? 0.15 : 0.10, AttributeModifier.Operation.ADD_MULTIPLIED_BASE, lightning > 0);
+		setModifier(player, Attributes.ATTACK_SPEED, LIGHTNING_ATTACK_SPEED, 0.15, AttributeModifier.Operation.ADD_MULTIPLIED_BASE, lightning >= 2);
 	}
 
 	/** Takes extra ticks off every harmful effect (20 ticks a second, so 4 is 20% faster). */
@@ -282,6 +286,22 @@ public final class SpiritHandler {
 		if (level(attacker, Spirit.DEATH) >= 3 && victim.getHealth() < victim.getMaxHealth() * 0.35f) {
 			amount *= 1.15f;
 		}
+		// Lightning level 3: a sprinting or critical hit may call down a small bolt (15s cooldown).
+		int lightning = level(attacker, Spirit.LIGHTNING);
+		long boltTime = attacker.level().getGameTime();
+		boolean crit = attacker.fallDistance > 0 && !attacker.onGround() && !attacker.onClimbable() && !attacker.isInWater();
+		if (lightning >= 3 && (crit || attacker.isSprinting()) && BOLT_READY.getOrDefault(attacker.getUUID(), 0L) <= boltTime
+				&& attacker.getRandom().nextFloat() < 0.35f) {
+			BOLT_READY.put(attacker.getUUID(), boltTime + 300);
+			ServerLevel boltLevel = (ServerLevel) attacker.level();
+			net.minecraft.world.entity.LightningBolt bolt = net.minecraft.world.entity.EntityType.LIGHTNING_BOLT.create(boltLevel, net.minecraft.world.entity.EntitySpawnReason.TRIGGERED);
+			if (bolt != null) {
+				bolt.setPos(victim.getX(), victim.getY(), victim.getZ());
+				bolt.setVisualOnly(true);
+				boltLevel.addFreshEntity(bolt);
+			}
+			amount += 3.0f;
+		}
 		// Fire: hits on a burning enemy land harder (level 2); a hit sets the enemy alight, once every 2.5s.
 		int fire = level(attacker, Spirit.FIRE);
 		if (fire >= 2 && victim.isOnFire()) {
@@ -322,13 +342,18 @@ public final class SpiritHandler {
 			float cut = source.is(DamageTypeTags.IS_PROJECTILE) ? pick(stone, 0.40f, 0.50f, 0.60f) : pick(stone, 0.15f, 0.20f, 0.25f);
 			amount *= 1.0f - cut;
 		}
-		// Lightning: shock whoever hits you in melee.
+		// Lightning level 2: when hit, 20% to discharge sparks at enemies within 3 blocks (10s cooldown).
 		int lightning = level(player, Spirit.LIGHTNING);
-		if (lightning > 0 && source.getEntity() instanceof LivingEntity attacker && source.getDirectEntity() == attacker
-				&& attacker != player && player.getRandom().nextFloat() < pick(lightning, 0.25f, 0.35f, 0.45f)) {
-			attacker.hurtServer(level, level.damageSources().lightningBolt(), pick(lightning, 1.0f, 2.0f, 3.0f));
-			level.sendParticles(ParticleTypes.ELECTRIC_SPARK, attacker.getX(), attacker.getY() + 1.0, attacker.getZ(), 20, 0.3, 0.6, 0.3, 0.2);
-			level.playSound(null, attacker.getX(), attacker.getY(), attacker.getZ(), SoundEvents.TRIDENT_THUNDER, SoundSource.PLAYERS, 0.4f, 1.6f);
+		long sparkTime = level.getGameTime();
+		if (lightning >= 2 && source.getEntity() instanceof LivingEntity && source.getEntity() != player
+				&& SPARK_READY.getOrDefault(player.getUUID(), 0L) <= sparkTime && player.getRandom().nextFloat() < 0.20f) {
+			SPARK_READY.put(player.getUUID(), sparkTime + 200);
+			for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(3), e -> enemy(player, e))) {
+				target.hurtServer(level, level.damageSources().lightningBolt(), 2.0f);
+				level.sendParticles(ParticleTypes.ELECTRIC_SPARK, target.getX(), target.getY() + 1.0, target.getZ(), 15, 0.3, 0.6, 0.3, 0.2);
+			}
+			level.sendParticles(ParticleTypes.ELECTRIC_SPARK, player.getX(), player.getY() + 1.0, player.getZ(), 30, 1.2, 0.6, 1.2, 0.3);
+			level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.TRIDENT_THUNDER, SoundSource.PLAYERS, 0.4f, 1.6f);
 		}
 		// Fire level 3: a ring of flame bursts out at low health, pushing enemies back and setting them alight.
 		int fire = level(player, Spirit.FIRE);
