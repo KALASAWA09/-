@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
+import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.Identifier;
@@ -81,7 +82,8 @@ public final class SpiritHandler {
 			case WATER -> player.isInWater() ? ParticleTypes.BUBBLE : ParticleTypes.BUBBLE_POP;
 			case DEATH -> ParticleTypes.SOUL;
 			case EARTH -> ParticleTypes.COMPOSTER;
-			case DARKNESS -> ParticleTypes.SMOKE; // the black smoke an End portal gives off
+			// The dark swirls of the Wither effect, made nearly black.
+			case DARKNESS -> ColorParticleOption.create(ParticleTypes.ENTITY_EFFECT, 0xFF231820);
 			case LIGHTNING -> ParticleTypes.ELECTRIC_SPARK;
 			case STONE -> ParticleTypes.WHITE_ASH;
 		};
