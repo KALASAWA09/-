@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.Identifier;
@@ -17,6 +18,8 @@ import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.effect.MobEffectCategory;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
@@ -43,9 +46,17 @@ public final class SpiritHandler {
 	private static final Identifier LIGHTNING_SPEED = SacredSouls.id("spirit_lightning_speed");
 	private static final Identifier STONE_ARMOR = SacredSouls.id("spirit_stone_armor");
 	private static final Identifier STONE_TOUGHNESS = SacredSouls.id("spirit_stone_toughness");
+	private static final Identifier WATER_SWIM = SacredSouls.id("spirit_water_swim");
+	private static final Map<UUID, Boolean> WAS_IN_WATER = new HashMap<>();
 
 	private static final Map<UUID, Long> DEATH_READY = new HashMap<>();
 	private static final Map<UUID, Long> WATER_READY = new HashMap<>();
+	private static final Map<UUID, Long> FIRE_HIT_READY = new HashMap<>();
+	private static final Map<UUID, Long> FIRE_RING_READY = new HashMap<>();
+	private static final Map<UUID, Long> LIGHT_FLASH_READY = new HashMap<>();
+	/** Health and food from the last second, to notice healing and eating. */
+	private static final Map<UUID, float[]> LAST_VITALS = new HashMap<>();
+	private static final ParticleOptions GOLD_DUST = new DustParticleOptions(0xFFD86B, 0.8f);
 
 	private SpiritHandler() {
 	}
@@ -87,10 +98,12 @@ public final class SpiritHandler {
 
 	private static ParticleOptions particle(Spirit spirit, ServerPlayer player, int mote) {
 		return switch (spirit) {
-			case FIRE -> ParticleTypes.FLAME;
-			case LIGHT -> ParticleTypes.END_ROD;
+			// Sparks and embers.
+			case FIRE -> mote % 2 == 0 ? ParticleTypes.FLAME : ParticleTypes.SMALL_FLAME;
+			// Soft golden light.
+			case LIGHT -> GOLD_DUST;
 			// Bubbles only live in water; in air they show as popping bubbles.
-			case WATER -> player.isInWater() ? ParticleTypes.BUBBLE : ParticleTypes.BUBBLE_POP;
+			case WATER -> mote % 2 == 1 ? ParticleTypes.SPLASH : player.isInWater() ? ParticleTypes.BUBBLE : ParticleTypes.BUBBLE_POP;
 			// Black smoke mixed with blue soul fire.
 			case DEATH -> mote % 2 == 0 ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.SMOKE;
 			case EARTH -> ParticleTypes.COMPOSTER;
@@ -123,11 +136,24 @@ public final class SpiritHandler {
 		if (spirit == null || data.isSoulless()) {
 			return;
 		}
-		// Light motes linger and glow, so the light aura is kept thin.
-		if (spirit == Spirit.LIGHT && time % 9 != 0) {
-			return;
+		// Fire: a little smoke trails behind while walking.
+		if (spirit == Spirit.FIRE && player.getDeltaMovement().horizontalDistanceSqr() > 0.001) {
+			level.sendParticles(ParticleTypes.SMOKE, player.getX(), player.getY() + 0.1, player.getZ(), 1, 0.2, 0.0, 0.2, 0.0);
 		}
-		int motes = spirit == Spirit.LIGHT ? 1 : data.spiritLevel() >= 3 ? 3 : 2;
+		// Water: a spray of droplets on jumping or diving in.
+		if (spirit == Spirit.WATER) {
+			boolean inWater = player.isInWater();
+			boolean dived = inWater && !WAS_IN_WATER.getOrDefault(player.getUUID(), false);
+			WAS_IN_WATER.put(player.getUUID(), inWater);
+			if (dived || (!player.onGround() && !inWater && player.getDeltaMovement().y > 0.25)) {
+				level.sendParticles(ParticleTypes.SPLASH, player.getX(), player.getY() + 0.2, player.getZ(), 12, 0.4, 0.1, 0.4, 0.1);
+			}
+		}
+		// Light: now and then a glowing End Rod speck drifts off.
+		if (spirit == Spirit.LIGHT && time % 15 == 0) {
+			level.sendParticles(ParticleTypes.END_ROD, player.getX(), player.getY() + 1.0, player.getZ(), 1, 0.4, 0.5, 0.4, 0.005);
+		}
+		int motes = data.spiritLevel() >= 3 ? 3 : 2;
 		for (int i = 0; i < motes; i++) {
 			double angle = time * 0.18 + i * (Math.PI * 2 / motes);
 			double height = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(time * 0.07 + i * 2.1));
@@ -137,41 +163,40 @@ public final class SpiritHandler {
 		}
 	}
 
-	/** Every second: effects, attributes and the fire spirit's burning aura. */
+	/** Every second: effects and attributes. */
 	public static void second(ServerPlayer player, ServerLevel level) {
 		// Old modifiers from earlier spirit versions.
 		setModifier(player, Attributes.MOVEMENT_SPEED, WIND_SPEED, 0, AttributeModifier.Operation.ADD_MULTIPLIED_BASE, false);
 		setModifier(player, Attributes.ARMOR, STONE_ARMOR, 0, AttributeModifier.Operation.ADD_VALUE, false);
 		setModifier(player, Attributes.ARMOR_TOUGHNESS, STONE_TOUGHNESS, 0, AttributeModifier.Operation.ADD_VALUE, false);
 
-		// Fire: immune to fire and lava; every 2 seconds burns enemies nearby.
-		int fire = level(player, Spirit.FIRE);
-		if (fire > 0) {
+		// Fire: immune to fire and lava.
+		if (level(player, Spirit.FIRE) > 0) {
 			Effects.keep(player, "fire_resistance", 0, 40);
-			if (player.tickCount % 40 < 20) {
-				double radius = pick(fire, 3, 4, 5);
-				for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(radius), e -> enemy(player, e))) {
-					target.igniteForSeconds(3.0f);
-					target.hurtServer(level, level.damageSources().inFire(), pick(fire, 1.0f, 2.0f, 3.0f));
-				}
-				level.sendParticles(ParticleTypes.FLAME, player.getX(), player.getY() + 0.2, player.getZ(), 16, radius / 2, 0.1, radius / 2, 0.01);
-			}
 		}
 
-		// Light: night vision; regeneration while standing in light.
+		// Light: night vision; regeneration in bright light, where bad effects also wear off faster.
 		int light = level(player, Spirit.LIGHT);
 		if (light > 0) {
 			Effects.keep(player, "night_vision", 0, 300);
-			if (level.getMaxLocalRawBrightness(player.blockPosition()) >= 10) {
+			if (level.getMaxLocalRawBrightness(player.blockPosition()) >= 12) {
 				Effects.keep(player, "regeneration", light >= 3 ? 1 : 0, 40);
+				if (light >= 2) {
+					shortenHarmful(player, 4);
+				}
 			}
 		}
+		lightFlash(player, level, light);
 
-		// Water: breathe and see underwater anywhere.
+		// Water: breathe and see underwater, swim fast; strong in water or rain (level 2).
 		int water = level(player, Spirit.WATER);
 		if (water > 0) {
 			Effects.keep(player, "water_breathing", 0, 40);
 			Effects.keep(player, "conduit_power", 0, 40);
+		}
+		setModifier(player, Attributes.WATER_MOVEMENT_EFFICIENCY, WATER_SWIM, water >= 2 ? 0.66 : 0.33, AttributeModifier.Operation.ADD_VALUE, water > 0);
+		if (water >= 2 && player.isInWaterOrRain()) {
+			Effects.keep(player, "strength", 0, 40);
 		}
 
 		// Death: Wither cannot touch you.
@@ -195,11 +220,59 @@ public final class SpiritHandler {
 		setModifier(player, Attributes.ATTACK_SPEED, LIGHTNING_ATTACK_SPEED, pick(lightning, 0.20f, 0.30f, 0.40f), AttributeModifier.Operation.ADD_MULTIPLIED_BASE, lightning > 0);
 	}
 
+	/** Takes extra ticks off every harmful effect (20 ticks a second, so 4 is 20% faster). */
+	private static void shortenHarmful(ServerPlayer player, int ticks) {
+		for (MobEffectInstance effect : java.util.List.copyOf(player.getActiveEffects())) {
+			if (effect.getEffect().value().getCategory() != MobEffectCategory.HARMFUL || effect.isInfiniteDuration()) {
+				continue;
+			}
+			int left = effect.getDuration() - ticks;
+			player.removeEffect(effect.getEffect());
+			if (left > 0) {
+				player.addEffect(new MobEffectInstance(effect.getEffect(), left, effect.getAmplifier(), effect.isAmbient(), effect.isVisible(), effect.showIcon()));
+			}
+		}
+	}
+
+	/** Light level 3: healing or eating may let out a flash that dazes enemies within 3 blocks. */
+	private static void lightFlash(ServerPlayer player, ServerLevel level, int light) {
+		float[] last = LAST_VITALS.get(player.getUUID());
+		float health = player.getHealth();
+		float food = player.getFoodData().getFoodLevel();
+		LAST_VITALS.put(player.getUUID(), new float[] {health, food});
+		if (light < 3 || last == null || (health <= last[0] && food <= last[1])) {
+			return;
+		}
+		long now = level.getGameTime();
+		if (LIGHT_FLASH_READY.getOrDefault(player.getUUID(), 0L) > now || player.getRandom().nextFloat() >= 0.25f) {
+			return;
+		}
+		LIGHT_FLASH_READY.put(player.getUUID(), now + 400);
+		for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(3), e -> enemy(player, e))) {
+			Effects.give(target, "blindness", 0, 20);
+			Effects.give(target, "slowness", 2, 20);
+		}
+		level.sendParticles(ParticleTypes.FLASH, player.getX(), player.getY() + 1.0, player.getZ(), 1, 0.0, 0.0, 0.0, 0.0);
+		level.sendParticles(ParticleTypes.END_ROD, player.getX(), player.getY() + 1.0, player.getZ(), 20, 0.5, 0.6, 0.5, 0.1);
+		level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 1.0f, 1.5f);
+	}
+
 	/** Melee damage the player deals. */
 	public static float modifyOutgoingDamage(ServerPlayer attacker, LivingEntity victim, float amount) {
 		int light = level(attacker, Spirit.LIGHT);
-		if (light > 0 && victim.getType().is(EntityTypeTags.UNDEAD)) {
-			amount *= 1.0f + pick(light, 0.25f, 0.35f, 0.50f);
+		if (light >= 2 && victim.getType().is(EntityTypeTags.UNDEAD)) {
+			amount *= 1.20f;
+		}
+		// Fire: hits on a burning enemy land harder (level 2); a hit sets the enemy alight, once every 2.5s.
+		int fire = level(attacker, Spirit.FIRE);
+		if (fire >= 2 && victim.isOnFire()) {
+			amount *= 1.10f;
+		}
+		long now = attacker.level().getGameTime();
+		if (fire > 0 && FIRE_HIT_READY.getOrDefault(attacker.getUUID(), 0L) <= now) {
+			FIRE_HIT_READY.put(attacker.getUUID(), now + 50);
+			victim.igniteForTicks(Math.max(victim.getRemainingFireTicks(), 30));
+			amount += 1.0f;
 		}
 		int darkness = level(attacker, Spirit.DARKNESS);
 		if (darkness > 0 && inDarkness(attacker)) {
@@ -231,13 +304,31 @@ public final class SpiritHandler {
 			level.sendParticles(ParticleTypes.ELECTRIC_SPARK, attacker.getX(), attacker.getY() + 1.0, attacker.getZ(), 20, 0.3, 0.6, 0.3, 0.2);
 			level.playSound(null, attacker.getX(), attacker.getY(), attacker.getZ(), SoundEvents.TRIDENT_THUNDER, SoundSource.PLAYERS, 0.4f, 1.6f);
 		}
-		// Water: a shield of water when health runs low.
+		// Fire level 3: a ring of flame bursts out at low health, pushing enemies back and setting them alight.
+		int fire = level(player, Spirit.FIRE);
+		long time = level.getGameTime();
+		if (fire >= 3 && player.getHealth() - amount < player.getMaxHealth() * 0.3f
+				&& FIRE_RING_READY.getOrDefault(player.getUUID(), 0L) <= time) {
+			FIRE_RING_READY.put(player.getUUID(), time + 900);
+			for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(4), e -> enemy(player, e))) {
+				target.knockback(1.2, player.getX() - target.getX(), player.getZ() - target.getZ());
+				target.hurtMarked = true;
+				target.igniteForSeconds(3.0f);
+			}
+			for (int i = 0; i < 32; i++) {
+				double angle = i * Math.PI * 2 / 32;
+				level.sendParticles(ParticleTypes.FLAME, player.getX() + Math.cos(angle) * 2.5, player.getY() + 0.3, player.getZ() + Math.sin(angle) * 2.5,
+						2, 0.1, 0.1, 0.1, 0.02);
+			}
+			level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BLAZE_SHOOT, SoundSource.PLAYERS, 1.0f, 0.7f);
+		}
+		// Water level 3: a shield of water at low health, 4 hearts or 6 hearts in water.
 		int water = level(player, Spirit.WATER);
 		long now = level.getGameTime();
-		if (water > 0 && player.getHealth() - amount < player.getMaxHealth() * 0.4f
+		if (water >= 3 && player.getHealth() - amount < player.getMaxHealth() * 0.4f
 				&& WATER_READY.getOrDefault(player.getUUID(), 0L) <= now) {
 			WATER_READY.put(player.getUUID(), now + 900);
-			Effects.give(player, "absorption", water, 200);
+			Effects.give(player, "absorption", player.isInWater() ? 2 : 1, 200);
 			level.sendParticles(ParticleTypes.SPLASH, player.getX(), player.getY() + 1.0, player.getZ(), 40, 0.5, 0.8, 0.5, 0.1);
 			level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PLAYER_SPLASH_HIGH_SPEED, SoundSource.PLAYERS, 0.8f, 1.2f);
 		}
