@@ -41,7 +41,7 @@ public final class KingEffects {
 	private static final double[] WAVES = {1.0 / 3.0, 2.0 / 3.0, 1.0};
 	private static final int WAVE_GAP = 22;
 	private static final int WAVE_SPREAD = 14;
-	private static final int PAUSE = 24;
+	private static final int PAUSE = com.kalasawa.sacredsouls.skill.KingShow.PAUSE;
 	private static final int AFTER = 320;
 
 	private record Effect(Vec3 center, int radius, int castTicks, long start) {
@@ -118,28 +118,18 @@ public final class KingEffects {
 		boolean pause = age >= pauseStart;
 		double circle = Mth.clamp(e.radius() * 0.3, 22, 45);
 		Vec3 sky = c.add(0, 45, 0);
+		// Embers drift up past the circle's rim.
+		if (!pause && age % 2 == 0) {
+			double a = random.nextDouble() * Math.PI * 2;
+			add(level, EMBER, sky.add(Math.cos(a) * circle, -random.nextDouble() * 4, Math.sin(a) * circle), 0, 0.02, 0);
+		}
 		double spin = age * 0.012;
 
 		if (!pause) {
-			// The circle draws itself in the first quarter, then turns slowly. Long-lived dust keeps the lines whole.
-			double drawn = Math.min(1.0, t / 0.25);
-			ring(level, GOLD, sky, circle, 18, spin, drawn);
-			ring(level, GOLD, sky, circle * 0.92, 14, -spin * 1.3, drawn);
-			ring(level, PALE, sky, circle * 0.55, 10, spin * 2, drawn);
-			ring(level, VIOLET, sky, circle * 0.3, 8, -spin * 3, drawn);
-			if (age % 3 == 0 && t > 0.15) {
-				// An eight-point star and a small rune circle at each point.
-				for (int i = 0; i < 8; i++) {
-					double a = spin + i * Math.PI / 4;
-					double b = a + Math.PI * 3 / 4;
-					Vec3 from = sky.add(Math.cos(a) * circle * 0.92, 0, Math.sin(a) * circle * 0.92);
-					Vec3 to = sky.add(Math.cos(b) * circle * 0.92, 0, Math.sin(b) * circle * 0.92);
-					line(level, GOLD, from, to, 4.0, random);
-					ring(level, PALE, from, 2.5, 4, age * 0.2, 1.0);
-				}
-			}
-			// The shadow of the circle on the ground marks the whole blast.
+			// The circles themselves are textured display entities from the server; the client adds light and motion.
+			// The shadow on the ground marks the edge of the blast.
 			ring(level, SHADOW, c.add(0, 0.4, 0), e.radius(), 10, spin, Math.min(1.0, t / 0.4));
+			ring(level, VIOLET, c.add(0, 0.6, 0), e.radius(), 4, -spin, Math.min(1.0, t / 0.4));
 			if (t > 0.35 && age % 6 == 0) {
 				// Eight pillars of light reach down from the circle's rim.
 				for (int i = 0; i < 8; i++) {
@@ -307,12 +297,26 @@ public final class KingEffects {
 		int width = graphics.guiWidth();
 		int height = graphics.guiHeight();
 		if (darkness > 0.01f) {
-			int alpha = (int) (darkness * 255) & 0xFF;
-			graphics.fill(0, 0, width, height, (alpha << 24) | 0x0A0414);
+			// A dark wash over everything, and a blood-red vignette closing in from the edges.
+			int wash = (int) (darkness * 140) & 0xFF;
+			graphics.fill(0, 0, width, height, (wash << 24) | 0x080208);
+			int edge = (int) (Math.min(1f, darkness * 1.4f) * 220) & 0xFF;
+			int red = (edge << 24) | 0x3A0008;
+			int clear = 0x003A0008;
+			int band = Math.max(1, (int) (height * 0.28f));
+			graphics.fillGradient(0, 0, width, band, red, clear);
+			graphics.fillGradient(0, height - band, width, height, clear, red);
+			int side = Math.max(1, (int) (width * 0.18f));
+			for (int i = 0; i < side; i += 2) {
+				int a = (int) (edge * (1.0f - i / (float) side)) & 0xFF;
+				graphics.fill(i, 0, i + 2, height, (a << 24) | 0x3A0008);
+				graphics.fill(width - i - 2, 0, width - i, height, (a << 24) | 0x3A0008);
+			}
 		}
 		if (flash > 0.01f) {
 			int alpha = (int) (Math.min(1f, flash) * 255) & 0xFF;
 			graphics.fill(0, 0, width, height, (alpha << 24) | 0xFFF8EC);
 		}
 	}
+
 }

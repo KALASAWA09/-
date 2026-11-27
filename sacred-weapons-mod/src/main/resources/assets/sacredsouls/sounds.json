@@ -1,0 +1,6 @@
+{
+  "king.drone": {"subtitle": "subtitles.sacredsouls.king.drone", "sounds": [{"name": "sacredsouls:king_drone", "stream": true}]},
+  "king.toll": {"subtitle": "subtitles.sacredsouls.king.toll", "sounds": [{"name": "sacredsouls:king_toll", "stream": true}]},
+  "king.boom": {"subtitle": "subtitles.sacredsouls.king.boom", "sounds": [{"name": "sacredsouls:king_boom", "stream": true}]},
+  "king.charge": {"subtitle": "subtitles.sacredsouls.king.charge", "sounds": [{"name": "sacredsouls:king_charge"}]}
+}

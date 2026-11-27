@@ -41,6 +41,7 @@ public class SacredSouls implements ModInitializer {
 	public void onInitialize() {
 		ModAttachments.init();
 		ModItems.init();
+		com.kalasawa.sacredsouls.skill.ModSounds.init();
 		LootSources.init();
 		SoulCommands.init();
 		SkillConfig.load();
@@ -64,7 +65,10 @@ public class SacredSouls implements ModInitializer {
 
 		ServerTickEvents.END_SERVER_TICK.register(POWERS::tick);
 		ServerTickEvents.END_SERVER_TICK.register(SkillHandler::tick);
-		ServerLifecycleEvents.SERVER_STOPPING.register(server -> BlockChanges.restoreAll());
+		ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+			BlockChanges.restoreAll();
+			com.kalasawa.sacredsouls.skill.KingShow.cleanupAll(server);
+		});
 		ServerLivingEntityEvents.ALLOW_DAMAGE.register(POWERS::allowDamage);
 		ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamageTaken, damageTaken, blocked) ->
 				POWERS.afterDamage(entity, source, damageTaken));

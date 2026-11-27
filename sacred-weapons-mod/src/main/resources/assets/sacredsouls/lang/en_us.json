@@ -438,5 +438,15 @@
   "msg.sacredsouls.cmd.destruction_set": "Skill block destruction is now: %s (saved to config)",
   "msg.sacredsouls.cmd.destruction_off": "off",
   "msg.sacredsouls.cmd.destruction_temporary": "temporary (blocks grow back)",
-  "msg.sacredsouls.cmd.destruction_permanent": "permanent (blocks never come back)"
+  "msg.sacredsouls.cmd.destruction_permanent": "permanent (blocks never come back)",
+  "msg.sacredsouls.king_title": "JUDGMENT OF EIGHT ELEMENTS",
+  "msg.sacredsouls.king_subtitle": "%s has condemned this land",
+  "msg.sacredsouls.king_bar": "Judgment of Eight Elements: %s",
+  "msg.sacredsouls.king_bar_end": "There is nowhere left to run",
+  "msg.sacredsouls.king_bar_after": "The land has been judged",
+  "msg.sacredsouls.king_silence": "...it is too late to run",
+  "subtitles.sacredsouls.king.drone": "The world groans",
+  "subtitles.sacredsouls.king.toll": "A funeral bell tolls",
+  "subtitles.sacredsouls.king.boom": "Judgment falls",
+  "subtitles.sacredsouls.king.charge": "Power gathers"
 }

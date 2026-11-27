@@ -268,6 +268,10 @@ public final class SkillHandler {
 			}
 		}
 		BlockChanges.tick(server);
+		// Sweep up show entities left by a crash or an unloaded cast, whenever no ultimate is running.
+		if (server.getTickCount() % 400 == 0 && CASTS.stream().noneMatch(cast -> cast.skill == Skill.KING)) {
+			KingShow.cleanupAll(server);
+		}
 	}
 
 	public static void onLeave(ServerPlayer player) {
@@ -425,6 +429,8 @@ public final class SkillHandler {
 		final List<LivingEntity> wallCheck = new ArrayList<>();
 		final List<LivingEntity> bolts = new ArrayList<>();
 		final List<Vec3> extra = new ArrayList<>();
+		/** The staging of the Spirit King ultimate: circles, storm, boss bar, cracks, sounds. */
+		KingShow show;
 		int age;
 		boolean done;
 
@@ -455,6 +461,10 @@ public final class SkillHandler {
 		void cancel() {
 			if (skill == Skill.KING && age < castTicks) {
 				setReady(player, Skill.KING, level.getGameTime() + Skill.KING.cooldownTicks / 2);
+			}
+			if (show != null) {
+				show.stop();
+				show = null;
 			}
 			BLOOD.remove(player.getUUID());
 		}
@@ -1137,8 +1147,9 @@ public final class SkillHandler {
 		// crater, and the poisoned, burning ground afterwards.
 		void king() {
 			int radius = SkillConfig.ultimateRadius;
-			int pauseStart = castTicks - 24;
+			int pauseStart = castTicks - KingShow.PAUSE;
 			if (age == 0) {
+				show = new KingShow(level, player, start, radius, castTicks);
 				MinecraftServer server = level.getServer();
 				Component text = SoulManager.msg("king_casting", player.getName(),
 						(int) start.x, (int) start.y, (int) start.z).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
@@ -1151,8 +1162,16 @@ public final class SkillHandler {
 						ServerPlayNetworking.send(other, payload);
 					}
 				}
-				everyone(SoundEvents.WITHER_SPAWN, 0.7f, 0.6f, -1);
-				everyone(SoundEvents.ELDER_GUARDIAN_CURSE, 1.0f, 0.5f, radius * 1.5);
+				everyone(SoundEvents.WITHER_SPAWN, 0.6f, 0.5f, -1);
+			}
+			if (show != null) {
+				show.late();
+				show.lateWaves();
+				if (age < castTicks) {
+					show.cast(age);
+				} else {
+					show.after(age - castTicks);
+				}
 			}
 			if (age < castTicks) {
 				if (player.getHealth() < startHealth - 12.0f) {
@@ -1168,11 +1187,7 @@ public final class SkillHandler {
 				// A heartbeat that quickens as the circle fills.
 				int beat = Math.max(5, (int) (24 - 18 * progress));
 				if (age < pauseStart && age % beat == 0) {
-					everyone(SoundEvents.WARDEN_HEARTBEAT, 1.0f, 0.6f + (float) progress * 0.5f, radius * 1.5);
-				}
-				if (age % 40 == 0 && age < pauseStart) {
-					sound(level, start, SoundEvents.BEACON_AMBIENT, 8.0f, 0.5f + (float) progress);
-					everyone(SoundEvents.RESPAWN_ANCHOR_CHARGE, 0.8f, 0.5f + (float) progress * 0.5f, radius * 1.2);
+					everyone(SoundEvents.WARDEN_HEARTBEAT, 0.7f, 0.6f + (float) progress * 0.5f, radius * 1.5);
 				}
 				if (age == castTicks / 2) {
 					everyone(SoundEvents.ENDER_DRAGON_GROWL, 1.0f, 0.5f, radius * 2);
@@ -1183,11 +1198,6 @@ public final class SkillHandler {
 						knock(enemy, start, -0.12, 0.0);
 						Effects.give(enemy, "slowness", 1, 10);
 					}
-				}
-				if (age == pauseStart) {
-					// Silence, then the charge of the final blow.
-					everyone(SoundEvents.WARDEN_SONIC_CHARGE, 1.0f, 0.5f, radius * 2);
-					everyone(SoundEvents.BEACON_DEACTIVATE, 1.0f, 0.5f, radius * 2);
 				}
 				return;
 			}
@@ -1244,6 +1254,10 @@ public final class SkillHandler {
 				}
 			}
 			if (step >= 260) {
+				if (show != null) {
+					show.finish();
+					show = null;
+				}
 				done = true;
 			}
 		}

@@ -26,7 +26,9 @@ public final class SkillConfig {
 	/** Radius of the ultimate's last wave, 20 to 200 blocks. */
 	public static int ultimateRadius = 150;
 	/** Cast time of the ultimate in seconds, 5 to 10. */
-	public static int ultimateCastSeconds = 8;
+	public static int ultimateCastSeconds = 10;
+	/** Lets the ultimate call a thunderstorm over the overworld while it is cast. */
+	public static boolean ultimateStorm = true;
 	/** Seconds before blocks broken by the ultimate grow back in temporary mode. */
 	public static int ultimateRegrowSeconds = 60;
 	/** Most blocks changed per tick by the ultimate, to keep the server from freezing. */
@@ -60,7 +62,11 @@ public final class SkillConfig {
 		if (intOf(props, "config_version", 1) < 2) {
 			ultimateRadius = 150; // The radius went from 50 to 150 in version 2.
 		}
-		ultimateCastSeconds = clamp(intOf(props, "ultimate_cast_seconds", 8), 5, 10);
+		ultimateCastSeconds = clamp(intOf(props, "ultimate_cast_seconds", 10), 5, 10);
+		if (intOf(props, "config_version", 1) < 4) {
+			ultimateCastSeconds = 10; // A longer build-up since version 4.
+		}
+		ultimateStorm = Boolean.parseBoolean(props.getProperty("ultimate_storm", "true").trim());
 		ultimateRegrowSeconds = clamp(intOf(props, "ultimate_regrow_seconds", 60), 10, 3600);
 		blocksPerTick = clamp(intOf(props, "blocks_per_tick", 2000), 100, 20000);
 		save(file);
@@ -74,12 +80,13 @@ public final class SkillConfig {
 
 	private static void save(Path file) {
 		Properties props = new Properties();
-		props.setProperty("config_version", "3");
+		props.setProperty("config_version", "4");
 		props.setProperty("skill_block_mode", blockMode.name().toLowerCase());
 		props.setProperty("skill_regrow_seconds", Integer.toString(regrowSeconds));
 		props.setProperty("skill_damage_multiplier", Double.toString(damageMultiplier));
 		props.setProperty("ultimate_breaks_blocks", Boolean.toString(ultimateBreaksBlocks));
 		props.setProperty("ultimate_radius", Integer.toString(ultimateRadius));
+		props.setProperty("ultimate_storm", Boolean.toString(ultimateStorm));
 		props.setProperty("ultimate_cast_seconds", Integer.toString(ultimateCastSeconds));
 		props.setProperty("ultimate_regrow_seconds", Integer.toString(ultimateRegrowSeconds));
 		props.setProperty("blocks_per_tick", Integer.toString(blocksPerTick));
