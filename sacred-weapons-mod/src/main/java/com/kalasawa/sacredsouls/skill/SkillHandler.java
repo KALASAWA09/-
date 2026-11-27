@@ -62,6 +62,17 @@ public final class SkillHandler {
 	private static final ParticleOptions KING_GOLD = new DustParticleOptions(0xFFE6A0, 3.0f);
 	private static final ParticleOptions KING_SHADOW = new DustParticleOptions(0xC8B4FF, 2.0f);
 	private static final ParticleOptions KING_CORE = new DustParticleOptions(0xFFFFFF, 4.0f);
+	// Big dust for the spirit skills: fewer, larger particles read better from afar and cost less.
+	private static final ParticleOptions FIRE_DUST = new DustParticleOptions(0xFF6A1A, 3.0f);
+	private static final ParticleOptions FIRE_CORE = new DustParticleOptions(0xFFD24A, 4.0f);
+	private static final ParticleOptions LIGHT_DUST = new DustParticleOptions(0xFFE08A, 2.5f);
+	private static final ParticleOptions PILLAR_DUST = new DustParticleOptions(0xFFF6D0, 4.0f);
+	private static final ParticleOptions WATER_DUST = new DustParticleOptions(0x2F7FE0, 3.5f);
+	private static final ParticleOptions DEATH_DUST = new DustParticleOptions(0x5A2A8A, 3.0f);
+	private static final ParticleOptions NIGHT_DUST = new DustParticleOptions(0x120A1E, 4.0f);
+	private static final ParticleOptions SPARK_DUST = new DustParticleOptions(0x9FE8FF, 2.5f);
+	private static final ParticleOptions ICE_DUST = new DustParticleOptions(0xBFEFFF, 3.0f);
+	private static final ParticleOptions BLOOD_BIG = new DustParticleOptions(0x8A0A14, 3.0f);
 
 	private static final class BloodPact {
 		float healed;
@@ -302,7 +313,7 @@ public final class SkillHandler {
 		return SkillConfig.regrowSeconds * 20;
 	}
 
-	/** A small bowl of natural blocks, at most radius 2, under a point. */
+	/** A bowl of natural blocks under a point. */
 	private static void crater(ServerLevel level, ServerPlayer owner, Vec3 center, double radius) {
 		BlockPos base = BlockPos.containing(center);
 		int r = (int) Math.ceil(radius);
@@ -366,6 +377,7 @@ public final class SkillHandler {
 		final List<LivingEntity> marked = new ArrayList<>();
 		final List<LivingEntity> wallCheck = new ArrayList<>();
 		final List<LivingEntity> bolts = new ArrayList<>();
+		final List<Vec3> extra = new ArrayList<>();
 		int age;
 		boolean done;
 
@@ -379,8 +391,8 @@ public final class SkillHandler {
 			Vec3 flat = new Vec3(look.x, 0, look.z);
 			this.direction = flat.lengthSqr() < 1.0E-4 ? new Vec3(0, 0, 1) : flat.normalize();
 			this.target = switch (skill) {
-				case FIRE -> aim(player, 16);
-				case LIGHT -> aim(player, 12);
+				case FIRE -> aim(player, 32);
+				case LIGHT -> aim(player, 24);
 				default -> start;
 			};
 			this.startHealth = player.getHealth();
@@ -407,78 +419,135 @@ public final class SkillHandler {
 			}
 		}
 
-		// ---- Fire: อุกกาบาตเพลิง. A fireball falls on the marked spot.
+		// ---- Fire: อุกกาบาตเพลิง. A huge meteor falls on the marked spot, with smaller ones raining around it.
 		void fire() {
 			if (age == 0) {
-				sound(level, start, SoundEvents.BLAZE_SHOOT, 1.0f, 0.7f);
+				sound(level, start, SoundEvents.BLAZE_SHOOT, 2.0f, 0.5f);
+				sound(level, target, SoundEvents.ENDER_DRAGON_GROWL, 1.5f, 1.6f);
+				for (int i = 0; i < 4; i++) {
+					double angle = i * Math.PI / 2 + level.random.nextDouble();
+					double r = 4.0 + level.random.nextDouble() * 3.0;
+					extra.add(ground(level, target.add(Math.cos(angle) * r, 2.0, Math.sin(angle) * r)));
+				}
 			}
 			if (age < castTicks) {
-				if (age % 2 == 0) {
-					ring(level, ParticleTypes.FLAME, target, 3.0, 28, 0.1, age * 0.05);
-				}
 				double t = (double) age / castTicks;
-				Vec3 ball = target.add(direction.scale(-3.0 * (1 - t))).add(0, 12.0 * (1 - t) + 0.5, 0);
-				level.sendParticles(ParticleTypes.FLAME, ball.x, ball.y, ball.z, 8, 0.3, 0.3, 0.3, 0.01);
-				level.sendParticles(ParticleTypes.LAVA, ball.x, ball.y, ball.z, 1, 0.2, 0.2, 0.2, 0);
-				level.sendParticles(ParticleTypes.SMOKE, ball.x, ball.y + 0.6, ball.z, 3, 0.2, 0.4, 0.2, 0.01);
+				// The marked ground glows: a big ring of fire and magma dust.
+				if (age % 3 == 0) {
+					farRing(level, FIRE_DUST, target.add(0, 0.15, 0), 7.0, 28, age * 0.05, 0.1);
+					farRing(level, ParticleTypes.FLAME, target.add(0, 0.2, 0), 7.0 * t, 14, -age * 0.08, 0.1);
+				}
+				// The meteor: a ball of fire falling from high above, trailing smoke.
+				Vec3 ball = target.add(direction.scale(-10.0 * (1 - t))).add(0, 30.0 * (1 - t) + 1.0, 0);
+				far(ParticleTypes.FLAME, ball, 12, 0.9, 0.9, 0.9, 0.02);
+				far(FIRE_CORE, ball, 4, 0.6, 0.6, 0.6, 0);
+				far(ParticleTypes.LAVA, ball, 2, 0.6, 0.6, 0.6, 0);
+				far(ParticleTypes.CAMPFIRE_SIGNAL_SMOKE, ball.add(direction.scale(-1.5)).add(0, 1.5, 0), 2, 0.4, 0.4, 0.4, 0.01);
+				for (int i = 0; i < extra.size(); i++) {
+					double lag = Math.max(0, t - 0.2 - i * 0.1) / 0.8;
+					Vec3 small = extra.get(i).add(direction.scale(-6.0 * (1 - lag))).add(0, 22.0 * (1 - lag) + 1.0, 0);
+					far(ParticleTypes.FLAME, small, 4, 0.4, 0.4, 0.4, 0.01);
+				}
+				if (age == castTicks - 6) {
+					sound(level, target, SoundEvents.FIRECHARGE_USE, 2.0f, 0.5f);
+				}
 				return;
 			}
-			if (age == castTicks) {
-				level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, target.x, target.y + 0.5, target.z, 1, 0, 0, 0, 0);
-				level.sendParticles(ParticleTypes.FLAME, target.x, target.y + 0.5, target.z, 70, 1.5, 0.6, 1.5, 0.12);
-				level.sendParticles(ParticleTypes.LARGE_SMOKE, target.x, target.y + 1.0, target.z, 25, 1.5, 0.8, 1.5, 0.03);
-				sound(level, target, SoundEvents.GENERIC_EXPLODE, 1.2f, 0.9f);
-				for (LivingEntity enemy : enemiesNear(player, target, 3.0)) {
-					hit(level, player, enemy, 6.0f);
-					enemy.igniteForSeconds(3.0f);
-					Vec3 push = enemy.position().subtract(target).normalize().scale(0.6);
-					enemy.push(push.x, 0.35, push.z);
-					enemy.hurtMarked = true;
+			int step = age - castTicks;
+			if (step == 0) {
+				far(ParticleTypes.EXPLOSION_EMITTER, target.add(0, 1, 0), 3, 2.0, 1.0, 2.0, 0);
+				far(ParticleTypes.FLAME, target.add(0, 1, 0), 120, 3.5, 1.5, 3.5, 0.25);
+				far(ParticleTypes.LAVA, target.add(0, 1, 0), 30, 3.0, 1.0, 3.0, 0);
+				far(ParticleTypes.CAMPFIRE_SIGNAL_SMOKE, target.add(0, 2, 0), 25, 3.0, 2.0, 3.0, 0.03);
+				sound(level, target, SoundEvents.GENERIC_EXPLODE, 3.0f, 0.6f);
+				sound(level, target, SoundEvents.LIGHTNING_BOLT_THUNDER, 1.5f, 1.4f);
+				for (LivingEntity enemy : enemiesNear(player, target, 7.0)) {
+					hit(level, player, enemy, enemy.position().distanceTo(target) <= 3.5 ? 8.0f : 6.0f);
+					enemy.igniteForSeconds(5.0f);
+					knock(enemy, target, 1.4, 0.7);
 				}
-				crater(level, player, target, 2.0);
+				crater(level, player, target, 4.0);
+				scatterFire(target, 7.0, 0.35f);
 			}
-			// Flames linger on the ground for three seconds.
-			if (age % 4 == 0) {
-				level.sendParticles(ParticleTypes.FLAME, target.x, target.y + 0.2, target.z, 10, 2.5, 0.1, 2.5, 0.01);
+			// The shockwave rolls outward as a ring of flame.
+			if (step < 8) {
+				double r = 1.5 + step * 1.0;
+				farRing(level, ParticleTypes.FLAME, target.add(0, 0.6, 0), r, 18 + step * 4, step * 0.3, 0.2);
+				farRing(level, ParticleTypes.LARGE_SMOKE, target.add(0, 1.0, 0), r, 10, step * 0.2, 0.3);
 			}
-			if (age >= castTicks + 60) {
+			// The small meteors land one after another.
+			for (int i = 0; i < extra.size(); i++) {
+				if (step == 4 + i * 5) {
+					Vec3 at = extra.get(i);
+					far(ParticleTypes.EXPLOSION, at.add(0, 1, 0), 3, 1.0, 0.5, 1.0, 0);
+					far(ParticleTypes.FLAME, at.add(0, 1, 0), 40, 1.5, 0.8, 1.5, 0.15);
+					sound(level, at, SoundEvents.GENERIC_EXPLODE, 1.5f, 1.0f);
+					for (LivingEntity enemy : enemiesNear(player, at, 3.0)) {
+						hit(level, player, enemy, 3.0f);
+						enemy.igniteForSeconds(3.0f);
+					}
+					crater(level, player, at, 2.0);
+				}
+			}
+			if (step % 5 == 0) {
+				far(ParticleTypes.FLAME, target.add(0, 0.3, 0), 14, 5.0, 0.2, 5.0, 0.01);
+				far(ParticleTypes.LARGE_SMOKE, target.add(0, 1.5, 0), 4, 4.0, 1.0, 4.0, 0.01);
+			}
+			if (step >= 80) {
 				done = true;
 			}
 		}
 
-		// ---- Light: พิพากษาสุริยะ. Two rune rings form, then a pillar of light strikes.
+		// ---- Light: พิพากษาสุริยะ. Great rune circles form, then a wide pillar of light falls from the sky.
 		void light() {
 			if (age == 0) {
-				sound(level, target, SoundEvents.ENCHANTMENT_TABLE_USE, 1.5f, 0.8f);
+				sound(level, target, SoundEvents.ENCHANTMENT_TABLE_USE, 2.0f, 0.6f);
+				sound(level, target, SoundEvents.BEACON_POWER_SELECT, 2.0f, 0.8f);
 			}
 			if (age < castTicks) {
-				double grow = Math.min(1.0, 0.3 + age / (double) castTicks);
-				ring(level, GOLD, target, 4.0 * grow, 40, 0.05, age * 0.06);
-				ring(level, GOLD, target, 3.1 * grow, 32, 0.05, -age * 0.06);
-				ring(level, ParticleTypes.END_ROD, target, 2.6 * grow, 10, 1.6, -age * 0.12);
-				level.sendParticles(ParticleTypes.ENCHANT, target.x, target.y + 1.2, target.z, 12, 2.5, 1.0, 2.5, 0.6);
+				double grow = Math.min(1.0, 0.25 + 1.2 * age / castTicks);
+				if (age % 2 == 0) {
+					farRing(level, LIGHT_DUST, target.add(0, 0.1, 0), 9.0 * grow, 40, age * 0.04, 0);
+					farRing(level, LIGHT_DUST, target.add(0, 0.1, 0), 7.0 * grow, 30, -age * 0.05, 0);
+					farRing(level, ParticleTypes.END_ROD, target.add(0, 0.3, 0), 4.0 * grow, 12, age * 0.1, 0);
+					// A second circle hangs in the air above, turning the other way.
+					farRing(level, LIGHT_DUST, target.add(0, 16, 0), 6.0 * grow, 26, -age * 0.06, 0);
+				}
+				// Eight rays rise from the outer circle.
+				if (age % 4 == 0) {
+					for (int i = 0; i < 8; i++) {
+						double angle = i * Math.PI / 4 + age * 0.04;
+						Vec3 base = target.add(Math.cos(angle) * 9.0 * grow, 0, Math.sin(angle) * 9.0 * grow);
+						far(ParticleTypes.END_ROD, base.add(0, 1.5, 0), 3, 0.05, 1.5, 0.05, 0.0);
+					}
+				}
+				far(ParticleTypes.ENCHANT, target.add(0, 1.5, 0), 10, 6.0, 1.5, 6.0, 0.8);
 				if (age == castTicks / 2) {
-					sound(level, target, SoundEvents.BEACON_POWER_SELECT, 1.2f, 1.4f);
+					sound(level, target, SoundEvents.BEACON_ACTIVATE, 2.0f, 0.7f);
 				}
 				return;
 			}
-			if (age == castTicks) {
-				for (double y = 0; y < 14; y += 0.4) {
-					level.sendParticles(ParticleTypes.END_ROD, target.x, target.y + y, target.z, 2, 0.25, 0.1, 0.25, 0);
-				}
-				level.sendParticles(ParticleTypes.FIREWORK, target.x, target.y + 1.0, target.z, 60, 2.0, 1.0, 2.0, 0.15);
-				sound(level, target, SoundEvents.BEACON_ACTIVATE, 1.5f, 1.2f);
-				sound(level, target, SoundEvents.FIREWORK_ROCKET_BLAST, 1.5f, 0.8f);
-				for (LivingEntity enemy : enemiesNear(player, target, 4.0)) {
-					float damage = enemy.position().distanceTo(target) <= 2.0 ? 8.0f : 6.0f;
+			int step = age - castTicks;
+			if (step == 0) {
+				sound(level, target, SoundEvents.BEACON_ACTIVATE, 3.0f, 1.2f);
+				sound(level, target, SoundEvents.LIGHTNING_BOLT_THUNDER, 2.0f, 1.8f);
+				sound(level, target, SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 3.0f, 0.6f);
+				far(ParticleTypes.FIREWORK, target.add(0, 1, 0), 150, 4.0, 1.5, 4.0, 0.3);
+				far(ParticleTypes.EXPLOSION_EMITTER, target.add(0, 1, 0), 1, 0, 0, 0, 0);
+				for (LivingEntity enemy : enemiesNear(player, target, 9.0)) {
+					float damage = enemy.position().distanceTo(target) <= 4.0 ? 8.0f : 6.0f;
 					if (enemy.getType().is(EntityTypeTags.UNDEAD)) {
 						damage *= 1.5f;
+						enemy.igniteForSeconds(4.0f);
 					}
 					hit(level, player, enemy, damage);
-					Effects.give(enemy, "blindness", 0, 20);
+					Effects.give(enemy, "blindness", 0, 40);
+					Effects.give(enemy, "glowing", 0, 100);
+					knock(enemy, target, 0.8, 0.5);
 				}
-				player.heal(4.0f);
-				surface(level, target, 4.0, (pos, state) -> {
+				player.heal(6.0f);
+				crater(level, player, target, 2.5);
+				surface(level, target, 9.0, (pos, state) -> {
 					if (state.is(Blocks.GRASS_BLOCK)) {
 						BlockChanges.replace(level, player, pos, Blocks.DIRT.defaultBlockState(), true, regrow());
 					} else if (state.is(BlockTags.SNOW) || state.is(Blocks.SNOW) || state.is(BlockTags.ICE)) {
@@ -486,194 +555,294 @@ public final class SkillHandler {
 					}
 				});
 			}
-			if (age % 3 == 0) {
-				level.sendParticles(ParticleTypes.END_ROD, target.x, target.y + 2.0, target.z, 4, 2.5, 1.5, 2.5, 0.02);
+			// The pillar: a wide column of light from 40 blocks up, burning for a second and a half.
+			if (step < 30) {
+				double width = step < 4 ? 2.5 : 2.5 * (1.0 - (step - 4) / 30.0);
+				for (double y = 0; y <= 40; y += 2.0) {
+					far(ParticleTypes.END_ROD, target.add(0, y, 0), 2, width * 0.5, 1.0, width * 0.5, 0.0);
+					if (step % 2 == 0) {
+						far(PILLAR_DUST, target.add(0, y, 0), 1, width * 0.4, 1.0, width * 0.4, 0);
+					}
+				}
 			}
-			if (age >= castTicks + 20) {
+			// Six lances of light strike around the circle after the pillar.
+			if (step >= 6 && step <= 21 && (step - 6) % 3 == 0) {
+				int i = (step - 6) / 3;
+				double angle = i * Math.PI / 3 + 0.4;
+				Vec3 at = ground(level, target.add(Math.cos(angle) * 6.0, 2.0, Math.sin(angle) * 6.0));
+				for (double y = 0; y <= 20; y += 1.0) {
+					far(ParticleTypes.END_ROD, at.add(0, y, 0), 1, 0.15, 0.4, 0.15, 0.0);
+				}
+				far(ParticleTypes.FIREWORK, at.add(0, 0.5, 0), 25, 1.0, 0.3, 1.0, 0.15);
+				sound(level, at, SoundEvents.AMETHYST_BLOCK_CHIME, 2.0f, 0.6f);
+				for (LivingEntity enemy : enemiesNear(player, at, 2.5)) {
+					hit(level, player, enemy, 2.0f);
+				}
+			}
+			if (step >= 40) {
 				done = true;
 			}
 		}
 
-		// ---- Water: คลื่นยักษ์. A cone of water sweeps forward and slams enemies into walls.
+		// ---- Water: คลื่นยักษ์. A wall of water rises and rolls forward, sweeping enemies away.
 		void water() {
-			Vec3 origin = player.position();
 			if (age == 0) {
-				sound(level, origin, SoundEvents.BUCKET_EMPTY, 1.2f, 0.7f);
+				sound(level, start, SoundEvents.BUCKET_EMPTY, 2.0f, 0.5f);
+				sound(level, start, SoundEvents.ELDER_GUARDIAN_CURSE, 1.0f, 1.4f);
 			}
 			if (age < castTicks) {
-				level.sendParticles(ParticleTypes.SPLASH, origin.x, origin.y + 0.8, origin.z, 10, 1.0, 0.6, 1.0, 0.05);
-				level.sendParticles(ParticleTypes.BUBBLE_POP, origin.x, origin.y + 1.0, origin.z, 4, 0.8, 0.5, 0.8, 0.02);
+				// Water spirals up around the caster.
+				Vec3 at = player.position();
+				double t = (double) age / castTicks;
+				for (int i = 0; i < 3; i++) {
+					double angle = age * 0.6 + i * Math.PI * 2 / 3;
+					far(WATER_DUST, at.add(Math.cos(angle) * 2.0, t * 3.0, Math.sin(angle) * 2.0), 2, 0.1, 0.1, 0.1, 0);
+				}
+				far(ParticleTypes.SPLASH, at.add(0, 0.5, 0), 12, 2.0, 0.3, 2.0, 0.1);
 				return;
 			}
 			int step = age - castTicks;
 			if (step == 0) {
-				sound(level, origin, SoundEvents.PLAYER_SPLASH_HIGH_SPEED, 1.5f, 0.6f);
-				sound(level, origin, SoundEvents.GENERIC_SPLASH, 1.5f, 0.8f);
+				sound(level, start, SoundEvents.PLAYER_SPLASH_HIGH_SPEED, 3.0f, 0.4f);
+				sound(level, start, SoundEvents.GENERIC_SPLASH, 3.0f, 0.5f);
+			}
+			// The wave: 4 blocks tall, widening as it rolls 16 blocks forward.
+			double front = Math.min(16.0, step * 1.2 + 1.0);
+			double halfWidth = 2.0 + front * 0.45;
+			if (front < 16.0) {
+				for (double side = -halfWidth; side <= halfWidth; side += 1.2) {
+					Vec3 at = start.add(direction.scale(front)).add(-direction.z * side, 0, direction.x * side);
+					at = ground(level, at.add(0, 2, 0));
+					double curl = 1.0 - Math.abs(side) / halfWidth;
+					double height = 1.5 + 2.5 * curl;
+					far(WATER_DUST, at.add(0, height * 0.5, 0), 2, 0.3, height * 0.35, 0.3, 0);
+					far(ParticleTypes.SPLASH, at.add(0, height, 0), 3, 0.3, 0.3, 0.3, 0.15);
+					if (((int) (side * 10)) % 3 == 0) {
+						far(ParticleTypes.CLOUD, at.add(0, height + 0.3, 0), 1, 0.2, 0.1, 0.2, 0.02);
+						far(ParticleTypes.FALLING_WATER, at.add(0, height, 0), 2, 0.3, 0.3, 0.3, 0);
+					}
+				}
+				if (step % 4 == 0) {
+					sound(level, start.add(direction.scale(front)), SoundEvents.GENERIC_SPLASH, 1.5f, 0.6f + step * 0.03f);
+				}
+				// Whatever the front passes is struck once and carried along.
 				boolean wet = level.isRainingAt(player.blockPosition().above()) || player.isInWater();
-				for (LivingEntity enemy : enemiesNear(player, start, 6.0)) {
-					Vec3 to = enemy.position().subtract(start);
-					Vec3 flat = new Vec3(to.x, 0, to.z);
-					if (flat.lengthSqr() < 0.01 || flat.normalize().dot(direction) < 0.7) {
+				for (LivingEntity enemy : enemiesNear(player, start, front + 1.0)) {
+					if (marked.contains(enemy)) {
 						continue;
 					}
+					Vec3 to = enemy.position().subtract(start);
+					double along = to.dot(direction);
+					double across = Math.abs(to.x * -direction.z + to.z * direction.x);
+					if (along < front - 1.8 || along > front + 1.0 || across > halfWidth + 1.0) {
+						continue;
+					}
+					marked.add(enemy);
 					hit(level, player, enemy, wet ? 8.0f : 6.0f);
 					enemy.clearFire();
-					Effects.give(enemy, "slowness", 0, 40);
-					enemy.setDeltaMovement(direction.x * 1.4, 0.35, direction.z * 1.4);
+					Effects.give(enemy, "slowness", 1, 60);
+					enemy.setDeltaMovement(direction.x * 2.2, 0.55, direction.z * 2.2);
 					enemy.hurtMarked = true;
 					wallCheck.add(enemy);
 				}
-				// The wave sweeps away plants, leaves and snow in front.
-				for (int d = 1; d <= 6; d++) {
-					for (int side = -d / 2 - 1; side <= d / 2 + 1; side++) {
-						Vec3 at = start.add(direction.scale(d)).add(-direction.z * side, 0, direction.x * side);
-						for (int dy = 0; dy <= 2; dy++) {
-							BlockPos pos = BlockPos.containing(at).above(dy);
-							if (BlockChanges.isSoft(level.getBlockState(pos))) {
-								BlockChanges.breakBlock(level, player, pos, true, regrow());
-							}
+				// The wave sweeps away plants, leaves and snow.
+				for (double side = -halfWidth; side <= halfWidth; side += 1.0) {
+					Vec3 at = start.add(direction.scale(front)).add(-direction.z * side, 0, direction.x * side);
+					for (int dy = 0; dy <= 3; dy++) {
+						BlockPos pos = BlockPos.containing(at).above(dy);
+						if (BlockChanges.isSoft(level.getBlockState(pos))) {
+							BlockChanges.breakBlock(level, player, pos, true, regrow());
 						}
 					}
 				}
-			}
-			// The wave front rolls forward over eight ticks.
-			double front = Math.min(6.0, (step + 1) * 0.8);
-			for (int side = -4; side <= 4; side++) {
-				double spread = front * 0.75 * side / 4.0;
-				Vec3 at = start.add(direction.scale(front)).add(-direction.z * spread, 0, direction.x * spread);
-				level.sendParticles(ParticleTypes.SPLASH, at.x, at.y + 0.8, at.z, 6, 0.3, 0.6, 0.3, 0.1);
-				level.sendParticles(ParticleTypes.BUBBLE_POP, at.x, at.y + 1.2, at.z, 2, 0.3, 0.4, 0.3, 0.02);
-				level.sendParticles(ParticleTypes.FALLING_WATER, at.x, at.y + 1.8, at.z, 2, 0.3, 0.2, 0.3, 0);
+			} else if (step == 14) {
+				// The wave breaks at the end in a great spray.
+				Vec3 end = start.add(direction.scale(16.0));
+				far(ParticleTypes.SPLASH, end.add(0, 2, 0), 120, halfWidth * 0.6, 1.5, halfWidth * 0.6, 0.3);
+				far(ParticleTypes.CLOUD, end.add(0, 2, 0), 20, halfWidth * 0.5, 1.0, halfWidth * 0.5, 0.05);
+				sound(level, end, SoundEvents.PLAYER_SPLASH_HIGH_SPEED, 3.0f, 0.5f);
 			}
 			// Slammed into a wall: one more hit.
 			for (Iterator<LivingEntity> it = wallCheck.iterator(); it.hasNext();) {
 				LivingEntity enemy = it.next();
 				if (enemy.horizontalCollision && enemy.isAlive()) {
-					hit(level, player, enemy, 2.0f);
-					level.sendParticles(ParticleTypes.SPLASH, enemy.getX(), enemy.getY() + 1.0, enemy.getZ(), 20, 0.4, 0.6, 0.4, 0.1);
+					hit(level, player, enemy, 3.0f);
+					far(ParticleTypes.SPLASH, enemy.position().add(0, 1, 0), 30, 0.6, 0.8, 0.6, 0.2);
+					sound(level, enemy.position(), SoundEvents.GENERIC_SPLASH, 1.5f, 0.6f);
 					it.remove();
 				}
 			}
-			if (step >= 10) {
+			if (step >= 30) {
 				done = true;
 			}
 		}
 
-		// ---- Death: ยมทูตเก็บวิญญาณ. Souls sweep around the caster and bring life back.
+		// ---- Death: ยมทูตเก็บวิญญาณ. The ground turns to souls, a giant scythe sweeps, life flows back.
 		void death() {
+			Vec3 center = player.position();
 			if (age == 0) {
-				sound(level, start, SoundEvents.SOUL_ESCAPE, 2.0f, 0.6f);
-				surface(level, start, 4.0, (pos, state) -> {
-					if (state.is(Blocks.GRASS_BLOCK) || state.is(Blocks.DIRT) || state.is(Blocks.COARSE_DIRT)) {
+				sound(level, start, SoundEvents.SOUL_ESCAPE, 3.0f, 0.5f);
+				sound(level, start, SoundEvents.WITHER_AMBIENT, 1.5f, 0.6f);
+				surface(level, start, 8.0, (pos, state) -> {
+					if (state.is(Blocks.GRASS_BLOCK) || state.is(Blocks.DIRT) || state.is(Blocks.COARSE_DIRT)
+							|| state.is(Blocks.SAND) || state.is(Blocks.PODZOL)) {
 						BlockChanges.replace(level, player, pos, Blocks.SOUL_SOIL.defaultBlockState(), true, regrow());
 					}
 				});
 			}
-			Vec3 center = player.position();
 			if (age < castTicks) {
+				double t = (double) age / castTicks;
 				if (age % 2 == 0) {
-					ring(level, ParticleTypes.SOUL, center, 4.0, 24, 0.2, age * 0.08);
+					farRing(level, ParticleTypes.SOUL_FIRE_FLAME, center.add(0, 0.2, 0), 9.0, 36, age * 0.06, 0.1);
+					farRing(level, DEATH_DUST, center.add(0, 0.4, 0), 8.2, 24, -age * 0.05, 0.1);
 				}
-				level.sendParticles(ParticleTypes.SOUL, center.x, center.y + 1.0, center.z, 3, 3.0, 0.5, 3.0, 0.01);
+				// Souls rise from the ground and gather above the caster into the scythe.
+				far(ParticleTypes.SOUL, center.add(0, 0.5, 0), 6, 6.0, 0.2, 6.0, 0.05);
+				far(ParticleTypes.SCULK_SOUL, center.add(0, 4.0 + t * 2, 0), 3, 0.8, 0.8, 0.8, 0.02);
 				return;
 			}
 			int step = age - castTicks;
-			if (step < 6) {
-				// The scythe: a sweeping arc of soul fire, one sixth of the circle per tick.
-				for (int i = 0; i < 12; i++) {
-					double angle = (step + i / 12.0) * Math.PI / 3;
-					for (double r = 2.8; r <= 4.0; r += 0.6) {
-						level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, center.x + Math.cos(angle) * r, center.y + 1.0,
-								center.z + Math.sin(angle) * r, 1, 0, 0.3, 0, 0.0);
+			if (step < 10) {
+				// The scythe: a wide arc of soul fire, a fifth of the circle per tick, twice around.
+				for (int i = 0; i < 10; i++) {
+					double angle = (step + i / 10.0) * Math.PI / 2.5;
+					for (double r = 2.0; r <= 9.0; r += 1.4) {
+						far(ParticleTypes.SOUL_FIRE_FLAME, center.add(Math.cos(angle) * r, 1.0 + r * 0.08, Math.sin(angle) * r), 1, 0, 0.1, 0, 0.0);
 					}
+					far(DEATH_DUST, center.add(Math.cos(angle) * 9.2, 1.2, Math.sin(angle) * 9.2), 1, 0.1, 0.3, 0.1, 0);
+				}
+				far(ParticleTypes.SWEEP_ATTACK, center.add(Math.cos(step * Math.PI / 2.5) * 5.0, 1.2, Math.sin(step * Math.PI / 2.5) * 5.0), 3, 1.5, 0.2, 1.5, 0);
+				if (step % 3 == 0) {
+					sound(level, center, SoundEvents.PLAYER_ATTACK_SWEEP, 2.0f, 0.5f);
 				}
 			}
 			if (step == 0) {
-				sound(level, center, SoundEvents.WITHER_SHOOT, 1.0f, 0.6f);
+				sound(level, center, SoundEvents.WITHER_SHOOT, 2.0f, 0.5f);
 				float dealt = 0;
-				for (LivingEntity enemy : enemiesNear(player, center, 4.0)) {
+				for (LivingEntity enemy : enemiesNear(player, center, 9.0)) {
 					float before = enemy.getHealth();
 					hit(level, player, enemy, 7.0f);
-					Effects.give(enemy, "wither", 0, 60);
+					Effects.give(enemy, "wither", 1, 80);
 					dealt += Math.max(0, before - enemy.getHealth());
-					line(level, ParticleTypes.SOUL, enemy.position().add(0, 1.2, 0), center.add(0, 1.2, 0), 0.5);
+					marked.add(enemy);
+					knock(enemy, center, -0.6, 0.3);
 				}
-				player.heal(Math.min(dealt * 0.5f, 4.0f));
+				player.heal(Math.min(dealt * 0.5f, 6.0f));
 			}
-			if (step >= 8) {
+			// The souls of everything struck stream back into the caster.
+			if (step > 0 && step < 20 && step % 2 == 0) {
+				for (LivingEntity enemy : marked) {
+					line(level, ParticleTypes.SOUL, enemy.position().add(0, 1.2, 0), center.add(0, 1.2, 0), 0.8);
+				}
+			}
+			if (step >= 22) {
 				done = true;
 			}
 		}
 
-		// ---- Darkness: ม่านราตรี. A ring of black mist for five seconds, then it collapses.
+		// ---- Darkness: ม่านราตรี. A dome of night for five seconds, then it collapses in a sonic blast.
 		void darkness() {
 			if (age == 0) {
-				sound(level, start, SoundEvents.SCULK_SHRIEKER_SHRIEK, 1.5f, 0.7f);
+				sound(level, start, SoundEvents.SCULK_SHRIEKER_SHRIEK, 3.0f, 0.5f);
+				sound(level, start, SoundEvents.WARDEN_EMERGE, 1.5f, 1.0f);
 			}
 			if (age < castTicks) {
-				ring(level, ParticleTypes.SMOKE, start, 5.0, 40, 0.2, age * 0.1);
+				double t = (double) age / castTicks;
+				farRing(level, NIGHT_DUST, start.add(0, 0.3, 0), 10.0 * t + 1.0, 30, age * 0.1, 0.2);
 				return;
 			}
 			int step = age - castTicks;
 			if (step < 100) {
-				if (step % 2 == 0) {
-					level.sendParticles(ParticleTypes.SQUID_INK, start.x, start.y + 1.2, start.z, 20, 3.0, 1.0, 3.0, 0.01);
-					level.sendParticles(ParticleTypes.LARGE_SMOKE, start.x, start.y + 1.0, start.z, 10, 3.2, 1.0, 3.2, 0.005);
-					level.sendParticles(SHADOW, start.x, start.y + 1.5, start.z, 10, 3.0, 1.2, 3.0, 0);
-					ring(level, ParticleTypes.SMOKE, start, 5.0, 24, 0.3, step * 0.05);
+				if (step % 3 == 0) {
+					// The dome: big black dust in latitude rings, so it reads as a shape and not a cloud.
+					for (int band = 0; band < 5; band++) {
+						double lat = band * Math.PI / 10;
+						double r = 10.0 * Math.cos(lat);
+						farRing(level, NIGHT_DUST, start.add(0, 10.0 * Math.sin(lat), 0), r, (int) (8 + r * 2.4), step * 0.03 + band, 0.2);
+					}
+					far(ParticleTypes.SQUID_INK, start.add(0, 1.5, 0), 10, 6.0, 1.5, 6.0, 0.01);
+					far(ParticleTypes.LARGE_SMOKE, start.add(0, 1.0, 0), 6, 7.0, 1.0, 7.0, 0.005);
 				}
 				if (step % 10 == 0) {
-					level.sendParticles(ParticleTypes.SCULK_SOUL, start.x, start.y + 1.0, start.z, 3, 3.0, 0.8, 3.0, 0.02);
+					far(ParticleTypes.SCULK_SOUL, start.add(0, 1.0, 0), 6, 7.0, 1.5, 7.0, 0.02);
 				}
 				if (step % 20 == 0) {
-					for (LivingEntity enemy : enemiesNear(player, start, 5.0)) {
-						Effects.give(enemy, "darkness", 0, 60);
+					sound(level, start, SoundEvents.WARDEN_HEARTBEAT, 2.0f, 0.6f);
+					for (LivingEntity enemy : enemiesNear(player, start, 10.0)) {
+						Effects.give(enemy, "darkness", 0, 80);
+						Effects.give(enemy, "slowness", 0, 30);
 						hit(level, player, enemy, 1.0f);
 					}
 				}
 				return;
 			}
-			// Collapse: the mist rushes inward and bites a small hole in the ground.
-			for (int i = 0; i < 48; i++) {
-				double angle = i * Math.PI * 2 / 48;
-				double x = start.x + Math.cos(angle) * 5.0;
-				double z = start.z + Math.sin(angle) * 5.0;
-				level.sendParticles(ParticleTypes.SQUID_INK, x, start.y + 1.0, z, 0, -Math.cos(angle), 0.05, -Math.sin(angle), 0.6);
+			if (step == 100) {
+				// Collapse: the dome rushes inward and the centre bursts.
+				for (int i = 0; i < 40; i++) {
+					double angle = i * Math.PI * 2 / 40;
+					Vec3 at = start.add(Math.cos(angle) * 10.0, 1.0, Math.sin(angle) * 10.0);
+					far(ParticleTypes.SQUID_INK, at, 0, -Math.cos(angle), 0.05, -Math.sin(angle), 1.2);
+				}
+				sound(level, start, SoundEvents.WARDEN_SONIC_BOOM, 3.0f, 0.5f);
 			}
-			level.sendParticles(ParticleTypes.LARGE_SMOKE, start.x, start.y + 0.5, start.z, 30, 0.8, 0.5, 0.8, 0.05);
-			sound(level, start, SoundEvents.WARDEN_SONIC_BOOM, 1.0f, 0.6f);
-			for (LivingEntity enemy : enemiesNear(player, start, 5.0)) {
-				hit(level, player, enemy, 4.0f);
+			if (step == 106) {
+				for (int i = 0; i < 8; i++) {
+					double angle = i * Math.PI / 4;
+					for (double r = 1.5; r <= 10.0; r += 1.5) {
+						far(ParticleTypes.SONIC_BOOM, start.add(Math.cos(angle) * r, 1.0, Math.sin(angle) * r), 1, 0, 0, 0, 0);
+					}
+				}
+				far(ParticleTypes.EXPLOSION_EMITTER, start.add(0, 1, 0), 1, 0, 0, 0, 0);
+				far(ParticleTypes.LARGE_SMOKE, start.add(0, 1, 0), 40, 2.0, 1.0, 2.0, 0.15);
+				sound(level, start, SoundEvents.GENERIC_EXPLODE, 3.0f, 0.5f);
+				for (LivingEntity enemy : enemiesNear(player, start, 10.0)) {
+					hit(level, player, enemy, 5.0f);
+					knock(enemy, start, 1.2, 0.6);
+				}
+				crater(level, player, start.add(direction.scale(3.0)), 3.0);
+				done = true;
 			}
-			crater(level, player, start, 1.5);
-			done = true;
 		}
 
-		// ---- Lightning: พิโรธอัสนี. Dash forward, then lightning jumps between up to three enemies.
+		// ---- Lightning: พิโรธอัสนี. Dash forward, then lightning jumps between up to five enemies.
 		void lightning() {
 			Vec3 at = player.position();
 			if (age == 0) {
-				sound(level, at, SoundEvents.LIGHTNING_BOLT_IMPACT, 0.8f, 1.6f);
+				sound(level, at, SoundEvents.LIGHTNING_BOLT_IMPACT, 1.5f, 1.4f);
+				sound(level, at, SoundEvents.TRIDENT_THUNDER, 1.5f, 1.2f);
 			}
 			if (age < castTicks) {
-				level.sendParticles(ParticleTypes.ELECTRIC_SPARK, at.x, at.y + 1.0, at.z, 8, 0.6, 0.8, 0.6, 0.05);
+				// Charge: sparks spin up the caster's body.
+				for (int i = 0; i < 3; i++) {
+					double angle = age * 0.9 + i * Math.PI * 2 / 3;
+					far(ParticleTypes.ELECTRIC_SPARK, at.add(Math.cos(angle) * 1.2, age * 0.15, Math.sin(angle) * 1.2), 3, 0.1, 0.1, 0.1, 0.05);
+				}
+				far(SPARK_DUST, at.add(0, 1, 0), 2, 0.8, 1.0, 0.8, 0);
 				return;
 			}
 			int step = age - castTicks;
 			if (step == 0) {
-				player.setDeltaMovement(direction.x * 1.6, 0.15, direction.z * 1.6);
+				player.setDeltaMovement(direction.x * 2.6, 0.2, direction.z * 2.6);
 				player.hurtMarked = true;
+				sound(level, at, SoundEvents.LIGHTNING_BOLT_THUNDER, 1.5f, 1.6f);
 			}
-			if (step < 4) {
-				level.sendParticles(ParticleTypes.ELECTRIC_SPARK, at.x, at.y + 0.8, at.z, 12, 0.3, 0.5, 0.3, 0.02);
+			if (step < 6) {
+				far(ParticleTypes.ELECTRIC_SPARK, at.add(0, 0.9, 0), 20, 0.4, 0.6, 0.4, 0.1);
+				far(SPARK_DUST, at.add(0, 0.9, 0), 3, 0.3, 0.5, 0.3, 0);
+				for (LivingEntity enemy : enemiesNear(player, at, 2.5)) {
+					if (!marked.contains(enemy)) {
+						marked.add(enemy);
+						hit(level, player, enemy, 3.0f); // Run through on the dash.
+					}
+				}
 			}
-			if (step == 3) {
+			if (step == 5) {
 				// Pick the chain: nearest enemy, then the nearest one to it that is not hit yet.
 				Vec3 from = at;
 				List<LivingEntity> chain = new ArrayList<>();
-				for (int i = 0; i < 3; i++) {
+				for (int i = 0; i < 5; i++) {
 					Vec3 origin = from;
-					LivingEntity next = enemiesNear(player, origin, 6.0).stream()
+					LivingEntity next = enemiesNear(player, origin, 12.0).stream()
 							.filter(e -> !chain.contains(e))
 							.min(Comparator.comparingDouble(e -> e.position().distanceTo(origin)))
 							.orElse(null);
@@ -687,135 +856,222 @@ public final class SkillHandler {
 					chain.add(chain.get(0)); // A lone enemy is struck twice.
 				}
 				bolts.addAll(chain);
-			}
-			if (step >= 3 && (step - 3) % 6 == 0) {
-				int index = (step - 3) / 6;
-				if (index >= bolts.size()) {
-					done = true;
-					return;
-				}
-				LivingEntity enemy = bolts.get(index);
-				if (enemy.isAlive()) {
-					LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level, EntitySpawnReason.TRIGGERED);
-					if (bolt != null) {
-						bolt.setPos(enemy.getX(), enemy.getY(), enemy.getZ());
-						bolt.setVisualOnly(true);
-						level.addFreshEntity(bolt);
+				if (chain.isEmpty()) {
+					// Nobody near: the storm still strikes three times ahead.
+					for (int i = 1; i <= 3; i++) {
+						extra.add(ground(level, at.add(direction.scale(i * 4.0)).add(0, 2, 0)));
 					}
-					hit(level, player, enemy, 4.0f);
-					Vec3 previous = index == 0 ? at : bolts.get(index - 1).position();
-					line(level, ParticleTypes.ELECTRIC_SPARK, previous.add(0, 1.0, 0), enemy.position().add(0, 1.0, 0), 0.4);
-					BlockChanges.placeBriefly(level, player, enemy.blockPosition(), Blocks.FIRE.defaultBlockState(), 60);
 				}
 			}
-			if (step > 3 + 6 * 3) {
+			if (step >= 5 && (step - 5) % 4 == 0) {
+				int index = (step - 5) / 4;
+				if (index < bolts.size()) {
+					LivingEntity enemy = bolts.get(index);
+					if (enemy.isAlive()) {
+						strike(enemy.position());
+						hit(level, player, enemy, 4.0f);
+						Effects.give(enemy, "slowness", 2, 20);
+						Vec3 previous = index == 0 ? at : bolts.get(index - 1).position();
+						line(level, ParticleTypes.ELECTRIC_SPARK, previous.add(0, 1.0, 0), enemy.position().add(0, 1.0, 0), 0.3);
+						line(level, SPARK_DUST, previous.add(0, 1.0, 0), enemy.position().add(0, 1.0, 0), 0.8);
+						BlockChanges.placeBriefly(level, player, enemy.blockPosition(), Blocks.FIRE.defaultBlockState(), 60);
+					}
+				} else if (index - bolts.size() < extra.size()) {
+					Vec3 spot = extra.get(index - bolts.size());
+					strike(spot);
+					for (LivingEntity enemy : enemiesNear(player, spot, 3.0)) {
+						hit(level, player, enemy, 4.0f);
+					}
+					crater(level, player, spot, 1.5);
+				}
+			}
+			if (step > 5 + 4 * 6) {
 				done = true;
 			}
 		}
 
-		// ---- Ice: คุกน้ำแข็ง. Frost bursts out, ice spikes trap enemies, then the ice shatters.
+		/** A visual lightning bolt with a flash of sparks where it lands. */
+		void strike(Vec3 at) {
+			LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level, EntitySpawnReason.TRIGGERED);
+			if (bolt != null) {
+				bolt.setPos(at.x, at.y, at.z);
+				bolt.setVisualOnly(true);
+				level.addFreshEntity(bolt);
+			}
+			far(ParticleTypes.ELECTRIC_SPARK, at.add(0, 0.5, 0), 40, 1.5, 0.5, 1.5, 0.3);
+			farRing(level, SPARK_DUST, at.add(0, 0.2, 0), 2.5, 14, 0, 0.1);
+		}
+
+		// ---- Ice: คุกน้ำแข็ง. A blizzard bursts out, ice spires rise in rings, then everything shatters.
 		void ice() {
 			if (age == 0) {
-				sound(level, start, SoundEvents.PLAYER_HURT_FREEZE, 1.5f, 0.6f);
+				sound(level, start, SoundEvents.PLAYER_HURT_FREEZE, 2.0f, 0.5f);
+				sound(level, start, SoundEvents.ELDER_GUARDIAN_CURSE, 1.0f, 0.8f);
 			}
 			if (age < castTicks) {
+				double t = (double) age / castTicks;
 				if (age % 2 == 0) {
-					ring(level, ParticleTypes.SNOWFLAKE, start, 4.0, 32, 0.2, age * 0.07);
+					farRing(level, ICE_DUST, start.add(0, 0.2, 0), 9.0 * t + 1.0, 32, age * 0.07, 0.1);
 				}
-				level.sendParticles(ParticleTypes.SNOWFLAKE, start.x, start.y + 1.0, start.z, 8, 3.0, 0.6, 3.0, 0.01);
+				far(ParticleTypes.SNOWFLAKE, start.add(0, 1.5, 0), 14, 8.0, 1.5, 8.0, 0.02);
 				return;
 			}
 			int step = age - castTicks;
 			if (step == 0) {
-				sound(level, start, SoundEvents.GLASS_PLACE, 1.5f, 0.6f);
-				for (LivingEntity enemy : enemiesNear(player, start, 4.0)) {
+				sound(level, start, SoundEvents.GLASS_PLACE, 2.0f, 0.5f);
+				sound(level, start, SoundEvents.GENERIC_EXPLODE, 1.5f, 1.6f);
+				for (LivingEntity enemy : enemiesNear(player, start, 9.0)) {
 					hit(level, player, enemy, 5.0f);
-					Effects.give(enemy, "slowness", 9, 30);
-					enemy.setTicksFrozen(Math.max(enemy.getTicksFrozen(), enemy.getTicksRequiredToFreeze() + 40));
+					Effects.give(enemy, "slowness", 9, 50);
+					enemy.setTicksFrozen(Math.max(enemy.getTicksFrozen(), enemy.getTicksRequiredToFreeze() + 80));
 					marked.add(enemy);
-					// Ice grows up around the trapped enemy.
+					// An ice prison grows around each trapped enemy, two blocks tall.
 					BlockPos feet = enemy.blockPosition();
 					for (int dx = -1; dx <= 1; dx++) {
 						for (int dz = -1; dz <= 1; dz++) {
-							if ((dx != 0 || dz != 0) && level.random.nextFloat() < 0.6f) {
-								BlockChanges.placeBriefly(level, player, feet.offset(dx, 0, dz), Blocks.PACKED_ICE.defaultBlockState(), 30);
+							if (dx != 0 || dz != 0) {
+								BlockChanges.placeBriefly(level, player, feet.offset(dx, 0, dz), Blocks.PACKED_ICE.defaultBlockState(), 50);
+								BlockChanges.placeBriefly(level, player, feet.offset(dx, 1, dz), Blocks.ICE.defaultBlockState(), 50);
 							}
 						}
 					}
 				}
-				// Spikes around the caster.
-				for (int i = 0; i < 10; i++) {
-					double angle = i * Math.PI * 2 / 10 + level.random.nextDouble() * 0.3;
-					BlockPos pos = BlockPos.containing(ground(level, start.add(Math.cos(angle) * 3.0, 1.0, Math.sin(angle) * 3.0)));
-					BlockChanges.placeBriefly(level, player, pos, Blocks.PACKED_ICE.defaultBlockState(), 30);
-					if (level.random.nextBoolean()) {
-						BlockChanges.placeBriefly(level, player, pos.above(), Blocks.PACKED_ICE.defaultBlockState(), 30);
-					}
-				}
 				// Water freezes, plants and snow are swept away.
-				surface(level, start, 4.0, (pos, state) -> {
+				surface(level, start, 9.0, (pos, state) -> {
 					if (state.is(Blocks.WATER)) {
 						BlockChanges.replace(level, player, pos, Blocks.FROSTED_ICE.defaultBlockState(), true, regrow());
 					} else if (BlockChanges.isSoft(state)) {
 						BlockChanges.breakBlock(level, player, pos, true, regrow());
 					}
 				});
-				level.sendParticles(ParticleTypes.SNOWFLAKE, start.x, start.y + 1.0, start.z, 80, 3.0, 1.0, 3.0, 0.05);
+				far(ParticleTypes.SNOWFLAKE, start.add(0, 1, 0), 150, 6.0, 2.0, 6.0, 0.15);
 			}
-			if (step == 30) {
-				sound(level, start, SoundEvents.GLASS_BREAK, 1.5f, 0.8f);
+			// Three rings of ice spires burst up one after another, taller further out.
+			for (int ringIndex = 0; ringIndex < 3; ringIndex++) {
+				if (step == ringIndex * 4) {
+					double r = 3.5 + ringIndex * 2.5;
+					int count = 8 + ringIndex * 4;
+					for (int i = 0; i < count; i++) {
+						double angle = i * Math.PI * 2 / count + ringIndex * 0.3 + level.random.nextDouble() * 0.2;
+						BlockPos base = BlockPos.containing(ground(level, start.add(Math.cos(angle) * r, 2.0, Math.sin(angle) * r)));
+						int height = 2 + ringIndex + level.random.nextInt(2);
+						for (int y = 0; y < height; y++) {
+							BlockChanges.placeBriefly(level, player, base.above(y),
+									(y == height - 1 ? Blocks.BLUE_ICE : Blocks.PACKED_ICE).defaultBlockState(), 50 - ringIndex * 4);
+						}
+						far(ICE_DUST, Vec3.atBottomCenterOf(base).add(0, height * 0.5, 0), 2, 0.3, height * 0.3, 0.3, 0);
+					}
+					sound(level, start, SoundEvents.GLASS_PLACE, 2.0f, 0.6f + ringIndex * 0.2f);
+					for (LivingEntity enemy : enemiesNear(player, start, r + 1.0)) {
+						if (enemy.position().distanceTo(start) > r - 1.5) {
+							hit(level, player, enemy, 1.5f);
+						}
+					}
+				}
+			}
+			if (step < 50 && step % 4 == 0) {
+				far(ParticleTypes.SNOWFLAKE, start.add(0, 3, 0), 12, 9.0, 3.0, 9.0, 0.01);
+			}
+			if (step == 50) {
+				sound(level, start, SoundEvents.GLASS_BREAK, 3.0f, 0.6f);
+				far(ParticleTypes.ITEM_SNOWBALL, start.add(0, 1, 0), 120, 8.0, 1.5, 8.0, 0.2);
 				for (LivingEntity enemy : marked) {
-					if (enemy.isAlive() && enemy.position().distanceTo(start) <= 7.0) {
-						hit(level, player, enemy, 3.0f);
-						level.sendParticles(ParticleTypes.ITEM_SNOWBALL, enemy.getX(), enemy.getY() + 1.0, enemy.getZ(), 30, 0.5, 0.6, 0.5, 0.1);
+					if (enemy.isAlive() && enemy.position().distanceTo(start) <= 12.0) {
+						hit(level, player, enemy, 4.0f);
+						far(ParticleTypes.ITEM_SNOWBALL, enemy.position().add(0, 1, 0), 30, 0.6, 0.8, 0.6, 0.15);
 					}
 				}
 				done = true;
 			}
 		}
 
-		// ---- Blood: พันธสัญญาโลหิต. Pay 3 hearts for five seconds of power, then burst.
+		// ---- Blood: พันธสัญญาโลหิต. Pay 3 hearts for five seconds of power, then a crimson eruption.
 		void blood() {
 			Vec3 at = player.position();
 			if (age == 0) {
 				player.setHealth(Math.max(1.0f, player.getHealth() - 6.0f));
-				sound(level, at, SoundEvents.WARDEN_HEARTBEAT, 2.0f, 1.0f);
+				sound(level, at, SoundEvents.WARDEN_HEARTBEAT, 3.0f, 0.8f);
+				sound(level, at, SoundEvents.ELDER_GUARDIAN_CURSE, 1.0f, 0.6f);
 			}
 			if (age < castTicks) {
-				for (int i = 0; i < 4; i++) {
-					double t = (age * 4 + i) / (castTicks * 4.0);
-					double angle = t * Math.PI * 6;
-					level.sendParticles(BLOOD_RED, at.x + Math.cos(angle), at.y + t * 2.2, at.z + Math.sin(angle), 1, 0, 0, 0, 0);
+				// Blood spirals up out of the caster.
+				for (int i = 0; i < 6; i++) {
+					double t = (age * 6 + i) / (castTicks * 6.0);
+					double angle = t * Math.PI * 8;
+					far(BLOOD_BIG, at.add(Math.cos(angle) * 1.6, t * 4.0, Math.sin(angle) * 1.6), 1, 0, 0, 0, 0);
 				}
 				return;
 			}
 			int step = age - castTicks;
 			if (step == 0) {
 				BLOOD.put(player.getUUID(), new BloodPact());
+				farRing(level, BLOOD_BIG, at.add(0, 0.2, 0), 4.0, 30, 0, 0.1);
 			}
 			if (step < 100) {
 				if (step % 2 == 0) {
 					double angle = step * 0.4;
-					level.sendParticles(BLOOD_RED, at.x + Math.cos(angle) * 0.8, at.y + 1.0, at.z + Math.sin(angle) * 0.8, 2, 0.05, 0.4, 0.05, 0);
+					far(BLOOD_BIG, at.add(Math.cos(angle) * 1.0, 1.0, Math.sin(angle) * 1.0), 1, 0.05, 0.4, 0.05, 0);
+					far(BLOOD_RED, at.add(-Math.cos(angle) * 1.0, 1.4, -Math.sin(angle) * 1.0), 2, 0.05, 0.4, 0.05, 0);
 				}
 				if (step % 20 == 0) {
-					sound(level, at, SoundEvents.WARDEN_HEARTBEAT, 1.0f, 1.2f);
+					sound(level, at, SoundEvents.WARDEN_HEARTBEAT, 2.0f, 1.0f + step * 0.004f);
 				}
 				return;
 			}
-			BloodPact pact = BLOOD.remove(player.getUUID());
-			float bonus = pact == null ? 0 : pact.healed * 0.5f;
-			float damage = Math.min(4.0f + bonus, 8.0f);
-			ring(level, BLOOD_RED, at, 3.0, 48, 0.4, 0);
-			ring(level, BLOOD_RED, at, 2.2, 36, 0.8, 0.3);
-			level.sendParticles(BLOOD_RED, at.x, at.y + 0.8, at.z, 80, 1.8, 0.6, 1.8, 0);
-			level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, at.x, at.y + 1.0, at.z, 15, 1.5, 0.5, 1.5, 0.1);
-			sound(level, at, SoundEvents.GENERIC_EXPLODE, 1.0f, 0.6f);
-			for (LivingEntity enemy : enemiesNear(player, at, 3.0)) {
-				hit(level, player, enemy, damage);
+			if (step == 100) {
+				BloodPact pact = BLOOD.remove(player.getUUID());
+				float bonus = pact == null ? 0 : pact.healed * 0.5f;
+				float damage = Math.min(5.0f + bonus, 9.0f);
+				far(ParticleTypes.EXPLOSION_EMITTER, at.add(0, 1, 0), 1, 0, 0, 0, 0);
+				far(BLOOD_BIG, at.add(0, 1.5, 0), 120, 3.5, 2.0, 3.5, 0);
+				far(ParticleTypes.DAMAGE_INDICATOR, at.add(0, 1, 0), 30, 3.0, 1.0, 3.0, 0.2);
+				sound(level, at, SoundEvents.GENERIC_EXPLODE, 3.0f, 0.5f);
+				sound(level, at, SoundEvents.WARDEN_ROAR, 1.5f, 1.2f);
+				for (LivingEntity enemy : enemiesNear(player, at, 8.0)) {
+					hit(level, player, enemy, damage);
+					Effects.give(enemy, "weakness", 0, 100);
+					knock(enemy, at, 1.3, 0.7);
+				}
+				crater(level, player, at, 3.0);
 			}
-			crater(level, player, at, 1.2);
-			done = true;
+			// Crimson spikes burst outward in eight lines.
+			if (step > 100 && step <= 108) {
+				double r = (step - 100) * 1.0;
+				for (int i = 0; i < 8; i++) {
+					double angle = i * Math.PI / 4;
+					Vec3 p = at.add(Math.cos(angle) * r, 0.3, Math.sin(angle) * r);
+					far(BLOOD_BIG, p, 3, 0.15, 0.8, 0.15, 0);
+				}
+				farRing(level, BLOOD_RED, at.add(0, 0.5, 0), r, 12 + (step - 100) * 4, step * 0.2, 0.2);
+			}
+			if (step > 108) {
+				done = true;
+			}
+		}
+
+		// ---- shared bits for the skills above
+
+		/** Particles seen from far away, up to the client's long particle range. */
+		void far(ParticleOptions particle, Vec3 at, int count, double dx, double dy, double dz, double speed) {
+			level.sendParticles(particle, true, true, at.x, at.y, at.z, count, dx, dy, dz, speed);
+		}
+
+		/** Pushes an enemy away from a point (or toward it, with a negative strength). */
+		void knock(LivingEntity enemy, Vec3 from, double strength, double up) {
+			Vec3 away = enemy.position().subtract(from);
+			Vec3 flat = new Vec3(away.x, 0, away.z);
+			Vec3 push = flat.lengthSqr() < 0.01 ? Vec3.ZERO : flat.normalize().scale(strength);
+			enemy.setDeltaMovement(enemy.getDeltaMovement().add(push.x, up, push.z));
+			enemy.hurtMarked = true;
+		}
+
+		/** Sets brief fires on the ground in a disc. */
+		void scatterFire(Vec3 center, double radius, float chance) {
+			surface(level, center, radius, (pos, state) -> {
+				if (level.random.nextFloat() < chance) {
+					BlockChanges.placeBriefly(level, player, pos.above(), Blocks.FIRE.defaultBlockState(), 60 + level.random.nextInt(40));
+				}
+			});
 		}
 
 		// ---- Spirit King: พิพากษาแปดธาตุ. A great circle in the sky, eight elements merge, three waves.

@@ -7,15 +7,15 @@ import com.kalasawa.sacredsouls.spirit.Spirit;
 
 /** Active skills: one per spirit, unlocked at spirit level 3, plus the Spirit King ultimate. */
 public enum Skill {
-	FIRE("fire", Spirit.FIRE, 90, 16),
-	LIGHT("light", Spirit.LIGHT, 80, 20),
-	WATER("water", Spirit.WATER, 80, 14),
-	DEATH("death", Spirit.DEATH, 100, 16),
-	DARKNESS("darkness", Spirit.DARKNESS, 110, 10),
-	LIGHTNING("lightning", Spirit.LIGHTNING, 70, 10),
-	ICE("ice", Spirit.ICE, 95, 16),
-	BLOOD("blood", Spirit.BLOOD, 120, 10),
-	KING("king", null, 25 * 60, 0);
+	FIRE("fire", Spirit.FIRE, 90, 24),
+	LIGHT("light", Spirit.LIGHT, 80, 30),
+	WATER("water", Spirit.WATER, 80, 16),
+	DEATH("death", Spirit.DEATH, 100, 20),
+	DARKNESS("darkness", Spirit.DARKNESS, 110, 14),
+	LIGHTNING("lightning", Spirit.LIGHTNING, 70, 12),
+	ICE("ice", Spirit.ICE, 95, 20),
+	BLOOD("blood", Spirit.BLOOD, 120, 12),
+	KING("king", null, 10 * 60, 0);
 
 	public static final int SHARED_COOLDOWN_TICKS = 80;
 
