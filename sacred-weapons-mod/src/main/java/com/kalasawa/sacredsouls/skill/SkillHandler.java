@@ -23,6 +23,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
@@ -48,7 +49,7 @@ import com.kalasawa.sacredsouls.title.SoulTitle;
 
 /**
  * Active skills. Each cast warns first (a ring or a charge others can see), then lands.
- * Damage is explosion damage owned by the caster, so armor and Blast Protection count and kills are credited.
+ * Damage is owned by the caster so kills are credited; see hit() for how armor treats it.
  */
 public final class SkillHandler {
 	private static final Map<UUID, Map<Skill, Long>> READY = new HashMap<>();
@@ -130,9 +131,19 @@ public final class SkillHandler {
 				.orElse(null);
 	}
 
+	/**
+	 * Half of a skill hit is explosion damage (armor and Blast Protection count), half is a soul strike that
+	 * goes through armor and enchantments, like the Warden's sonic boom, so armored players still feel it.
+	 * Neither half has the caster as the direct attacker, so melee-only powers do not trigger.
+	 */
 	private static void hit(ServerLevel level, ServerPlayer player, LivingEntity target, float amount) {
+		float total = amount * (float) SkillConfig.damageMultiplier;
 		target.invulnerableTime = 0;
-		target.hurtServer(level, level.damageSources().explosion(null, player), amount * (float) SkillConfig.damageMultiplier);
+		target.hurtServer(level, level.damageSources().explosion(null, player), total * 0.5f);
+		if (target.isAlive()) {
+			target.invulnerableTime = 0;
+			target.hurtServer(level, level.damageSources().source(DamageTypes.SONIC_BOOM, null, player), total * 0.5f);
+		}
 	}
 
 	// ---------------------------------------------------------------- cooldowns
