@@ -185,6 +185,36 @@ public final class PowerHandler {
 		return level.dimension() == Level.OVERWORLD && !isNight(level) && level.canSeeSky(player.blockPosition().above());
 	}
 
+	/** Daylight under open sky, or standing in very bright light (13+). */
+	private static boolean inBrightLight(Player player) {
+		return inSunlight(player) || player.level().getMaxLocalRawBrightness(player.blockPosition()) >= 13;
+	}
+
+	/** Near water: an ocean, beach or river biome. */
+	private static boolean byWater(Player player) {
+		net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome> biome = player.level().getBiome(player.blockPosition());
+		return biome.is(net.minecraft.tags.BiomeTags.IS_OCEAN) || biome.is(net.minecraft.tags.BiomeTags.IS_BEACH)
+				|| biome.is(net.minecraft.tags.BiomeTags.IS_RIVER);
+	}
+
+	/** The block the player is aiming at is dirt, sand, gravel or stone. */
+	private static boolean aimingAtEarth(ServerPlayer player) {
+		if (!(player.pick(5.0, 0.0f, false) instanceof net.minecraft.world.phys.BlockHitResult hit)
+				|| hit.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK) {
+			return false;
+		}
+		net.minecraft.world.level.block.state.BlockState state = player.level().getBlockState(hit.getBlockPos());
+		return state.is(BlockTags.DIRT) || state.is(BlockTags.SAND) || state.is(net.minecraft.world.level.block.Blocks.GRAVEL)
+				|| state.is(BlockTags.BASE_STONE_OVERWORLD);
+	}
+
+	/** Standing in water, on mud, or among leaves: roots take hold faster there. */
+	private static boolean onRootingGround(ServerPlayer player) {
+		net.minecraft.world.level.block.state.BlockState below = player.level().getBlockState(player.getOnPos());
+		net.minecraft.world.level.block.state.BlockState at = player.level().getBlockState(player.blockPosition());
+		return player.isInWater() || below.is(net.minecraft.world.level.block.Blocks.MUD) || below.is(BlockTags.LEAVES) || at.is(BlockTags.LEAVES);
+	}
+
 	private static void setTransientModifier(ServerPlayer player, Identifier id, double amount, boolean on) {
 		setModifier(player, Attributes.KNOCKBACK_RESISTANCE, id, amount, AttributeModifier.Operation.ADD_VALUE, on);
 	}
@@ -234,9 +264,9 @@ public final class PowerHandler {
 			player.removeEffect(Effects.get("wither"));
 		}
 
-		// รากไม้โบราณ: stand still for 2 seconds.
+		// รากไม้โบราณ: stand still for 1.5 seconds, or half a second in water, on mud or in leaves.
 		int root = level(player, SoulPower.ANCIENT_ROOT);
-		boolean rooted = root > 0 && state.stillTicks >= 40;
+		boolean rooted = root > 0 && state.stillTicks >= (onRootingGround(player) ? 10 : 30);
 		setTransientModifier(player, ROOT_KNOCKBACK, 1.0, rooted);
 		if (rooted && state.stillTicks % 20 == 0) {
 			Effects.keep(player, "regeneration", root >= 3 ? 1 : 0, 30);
@@ -245,7 +275,7 @@ public final class PowerHandler {
 
 		// เกล็ดกิ้งก่า: crouch still, then vanish until moving or attacking.
 		int chameleon = level(player, SoulPower.CHAMELEON_SCALE);
-		if (chameleon > 0 && !state.chameleonHidden && state.sneakStillTicks >= pick(chameleon, 40, 30, 20)) {
+		if (chameleon > 0 && !state.chameleonHidden && state.sneakStillTicks >= pick(chameleon, 30, 25, 20)) {
 			state.chameleonHidden = true;
 			level.sendParticles(ParticleTypes.SMOKE, player.getX(), player.getY() + 1.0, player.getZ(), 10, 0.3, 0.5, 0.3, 0.01);
 		}
@@ -282,11 +312,13 @@ public final class PowerHandler {
 		tickNewPowers(player, level, state);
 		SpiritHandler.tick(player, level, level.getGameTime());
 
-		// เขาแพะหิน: ram while sprinting.
+		// เขาแพะหิน: ram while sprinting, or by diving onto an enemy from above.
 		int horn = level(player, SoulPower.STONE_HORN);
-		if (horn > 0 && player.isSprinting() && ready(player, "horn")) {
+		boolean diving = !player.onGround() && player.fallDistance >= 2.0 && player.getDeltaMovement().y < 0;
+		if (horn > 0 && (player.isSprinting() || diving) && ready(player, "horn")) {
 			Vec3 look = player.getLookAngle();
-			AABB front = player.getBoundingBox().move(look.x * 0.6, 0, look.z * 0.6).inflate(0.2);
+			AABB front = diving && !player.isSprinting() ? player.getBoundingBox().move(0, -0.8, 0).inflate(0.4)
+					: player.getBoundingBox().move(look.x * 0.6, 0, look.z * 0.6).inflate(0.2);
 			for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, front, e -> enemy(player, e))) {
 				boolean chained = level(player, SoulPower.SHACKLE) > 0 && isChainedBy(target, player);
 				float strength = pick(horn, 1.5f, 2.0f, 2.5f) * (chained ? 2.0f : 1.0f);
@@ -354,7 +386,7 @@ public final class PowerHandler {
 		}
 
 		int bat = level(player, SoulPower.BAT_WING);
-		if (bat > 0 && level.getMaxLocalRawBrightness(player.blockPosition()) <= 7) {
+		if (bat > 0 && (isNight(level) || level.getMaxLocalRawBrightness(player.blockPosition()) <= 7)) {
 			Effects.keep(player, "speed", 1, 40);
 			Effects.keep(player, "night_vision", 0, 260);
 		}
@@ -850,7 +882,7 @@ public final class PowerHandler {
 		setModifier(player, Attributes.MOVEMENT_SPEED, SWIFT_HOOF_SPEED, pick(hoof, 0.10f, 0.15f, 0.20f), AttributeModifier.Operation.ADD_MULTIPLIED_BASE, hoof > 0);
 
 		int moon = level(player, SoulPower.BLOOD_MOON);
-		setModifier(player, Attributes.ATTACK_DAMAGE, BLOOD_MOON_DAMAGE, pick(moon, 1, 2, 3), AttributeModifier.Operation.ADD_VALUE, moon > 0 && isNight(level));
+		setModifier(player, Attributes.ATTACK_DAMAGE, BLOOD_MOON_DAMAGE, pick(moon, 1, 2, 3), AttributeModifier.Operation.ADD_VALUE, moon > 0 && (isNight(level) || level.dimension() == Level.NETHER));
 
 		int tide = level(player, SoulPower.TIDE_PEARL);
 		if (tide > 0 && player.isInWater()) {
@@ -864,7 +896,7 @@ public final class PowerHandler {
 		}
 
 		int mole = level(player, SoulPower.MOLE_CLAW);
-		if (mole > 0 && player.getY() < 50 && !level.canSeeSky(player.blockPosition().above())) {
+		if (mole > 0 && ((player.getY() < 50 && !level.canSeeSky(player.blockPosition().above())) || aimingAtEarth(player))) {
 			Effects.keep(player, "haste", mole - 1, 40);
 		}
 
@@ -1009,7 +1041,7 @@ public final class PowerHandler {
 		}
 
 		int storm = level(attacker, SoulPower.STORM_ROD);
-		if (storm > 0 && level.isRainingAt(attacker.blockPosition().above()) && ready(attacker, "storm_rod")
+		if (storm > 0 && (level.isRainingAt(attacker.blockPosition().above()) || byWater(attacker)) && ready(attacker, "storm_rod")
 				&& roll(attacker, data, pick(storm, 0.15f, 0.20f, 0.25f))) {
 			cooldown(attacker, "storm_rod", 60);
 			LightningBolt bolt = EntityType.LIGHTNING_BOLT.create(level, EntitySpawnReason.TRIGGERED);
@@ -1022,7 +1054,7 @@ public final class PowerHandler {
 		}
 
 		int sun = level(attacker, SoulPower.SUN_SHARD);
-		if (sun > 0 && inSunlight(attacker)) {
+		if (sun > 0 && inBrightLight(attacker)) {
 			victim.igniteForSeconds(pick(sun, 2.0f, 3.0f, 4.0f));
 		}
 	}
