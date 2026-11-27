@@ -23,6 +23,10 @@ public class SkillWheelScreen extends Screen {
 
 	private final List<Skill> available;
 	private Skill hovered;
+	/** Cached strips {left, top, right, color}, relative to the centre. */
+	private List<int[]> shape;
+	private int shapeHover = -2;
+	private boolean shapeKing;
 
 	public SkillWheelScreen() {
 		super(Component.translatable("gui.sacredsouls.skill_wheel"));
@@ -79,36 +83,17 @@ public class SkillWheelScreen extends Screen {
 		}
 		int hoverIndex = hovered != null && hovered.spirit != null ? hovered.spirit.ordinal() : -1;
 
-		// The ring, drawn in small square cells for a pixel look.
-		for (int px = -OUTER - 6; px <= OUTER + 6; px += CELL) {
-			for (int py = -OUTER - 6; py <= OUTER + 6; py += CELL) {
-				double d = Math.sqrt(px * px + py * py);
-				double angle = angleOf(px, py);
-				int index = segment(angle);
-				boolean hover = index == hoverIndex;
-				double outer = OUTER + (hover ? 5 : 0);
-				double inner = INNER + (hover ? 5 : 0);
-				if (d < inner || d > outer) {
-					continue;
-				}
-				double offset = ((angle + 22.5) % 45 + 45) % 45;
-				if (offset < 2.0 || offset > 43.0) {
-					continue; // The thin gap between segments.
-				}
-				boolean unlocked = available.contains(skillAt(index));
-				int color = hover ? SEGMENT_HOVER : unlocked ? SEGMENT : SEGMENT_LOCKED;
-				graphics.fill(cx + px, cy + py, cx + px + CELL, cy + py + CELL, color);
-			}
+		// The ring and the middle disc, as pixel cells merged into horizontal strips. The strips only
+		// change when the pointed segment changes, so they are built once and reused every frame.
+		if (shape == null || shapeHover != hoverIndex || shapeKing != (hovered == Skill.KING)) {
+			shape = buildShape(hoverIndex, hovered == Skill.KING);
+			shapeHover = hoverIndex;
+			shapeKing = hovered == Skill.KING;
 		}
-		// The middle: the Spirit King's ultimate, if this player holds the title.
+		for (int[] strip : shape) {
+			graphics.fill(cx + strip[0], cy + strip[1], cx + strip[2], cy + strip[1] + CELL, strip[3]);
+		}
 		if (available.contains(Skill.KING)) {
-			for (int px = -INNER + 6; px <= INNER - 6; px += CELL) {
-				for (int py = -INNER + 6; py <= INNER - 6; py += CELL) {
-					if (px * px + py * py <= (INNER - 6) * (INNER - 6)) {
-						graphics.fill(cx + px, cy + py, cx + px + CELL, cy + py + CELL, hovered == Skill.KING ? SEGMENT_HOVER : SEGMENT);
-					}
-				}
-			}
 			drawIcon(graphics, Skill.KING, cx, cy - 6, true);
 		}
 		for (int i = 0; i < 8; i++) {
@@ -134,6 +119,50 @@ public class SkillWheelScreen extends Screen {
 			}
 			graphics.drawCenteredString(this.font, state, cx, textY + 11, 0xFFD8D8E0);
 		}
+	}
+
+	private List<int[]> buildShape(int hoverIndex, boolean kingHovered) {
+		List<int[]> strips = new java.util.ArrayList<>();
+		boolean king = available.contains(Skill.KING);
+		int reach = OUTER + 6;
+		for (int py = -reach; py <= reach; py += CELL) {
+			int runStart = 0;
+			int runColor = 0;
+			for (int px = -reach; px <= reach + CELL; px += CELL) {
+				int color = px > reach ? 0 : cellColor(px, py, hoverIndex, king, kingHovered);
+				if (color != runColor) {
+					if (runColor != 0) {
+						strips.add(new int[] {runStart, py, px, runColor});
+					}
+					runStart = px;
+					runColor = color;
+				}
+			}
+		}
+		return strips;
+	}
+
+	/** The colour of one pixel cell, or 0 where nothing is drawn. */
+	private int cellColor(int px, int py, int hoverIndex, boolean king, boolean kingHovered) {
+		double d = Math.sqrt(px * px + py * py);
+		if (king && px >= -INNER + 6 && px <= INNER - 6 && py >= -INNER + 6 && py <= INNER - 6
+				&& px * px + py * py <= (INNER - 6) * (INNER - 6)) {
+			return kingHovered ? SEGMENT_HOVER : SEGMENT;
+		}
+		double angle = angleOf(px, py);
+		int index = segment(angle);
+		boolean hover = index == hoverIndex;
+		double outer = OUTER + (hover ? 5 : 0);
+		double inner = INNER + (hover ? 5 : 0);
+		if (d < inner || d > outer) {
+			return 0;
+		}
+		double offset = ((angle + 22.5) % 45 + 45) % 45;
+		if (offset < 2.0 || offset > 43.0) {
+			return 0; // The thin gap between segments.
+		}
+		boolean unlocked = available.contains(skillAt(index));
+		return hover ? SEGMENT_HOVER : unlocked ? SEGMENT : SEGMENT_LOCKED;
 	}
 
 	private void drawIcon(GuiGraphics graphics, Skill skill, int x, int y, boolean unlocked) {

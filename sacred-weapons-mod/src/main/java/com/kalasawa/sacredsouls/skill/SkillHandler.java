@@ -847,22 +847,25 @@ public final class SkillHandler {
 				double ringRadius = radius * 0.85 * Math.min(1.0, 0.4 + progress * 1.5);
 				// The circle in the sky: three rings and an eight-point star, turning slowly.
 				double phase = age * 0.01;
-				farRing(level, KING_GOLD, sky, ringRadius, 24, phase + level.random.nextDouble(), 0.3);
-				farRing(level, KING_GOLD, sky, ringRadius * 0.88, 20, -phase + level.random.nextDouble(), 0.3);
-				farRing(level, KING_GOLD, sky, ringRadius * 0.45, 12, phase * 2 + level.random.nextDouble(), 0.2);
+				// Every other tick only: dust lingers long enough, and fewer particles keep the frame rate up.
+				if (age % 2 == 0) {
+					farRing(level, KING_GOLD, sky, ringRadius, 16, phase + level.random.nextDouble(), 0.3);
+					farRing(level, KING_GOLD, sky, ringRadius * 0.88, 12, -phase + level.random.nextDouble(), 0.3);
+					farRing(level, KING_GOLD, sky, ringRadius * 0.45, 8, phase * 2 + level.random.nextDouble(), 0.2);
+				}
 				if (age % 10 == 0) {
 					for (int i = 0; i < 8; i++) {
 						double a = phase + i * Math.PI / 4;
 						double b = a + Math.PI * 3 / 4;
 						Vec3 from = sky.add(Math.cos(a) * ringRadius * 0.88, 0, Math.sin(a) * ringRadius * 0.88);
 						Vec3 to = sky.add(Math.cos(b) * ringRadius * 0.88, 0, Math.sin(b) * ringRadius * 0.88);
-						for (int k = 0; k <= 12; k++) {
-							Vec3 p = from.add(to.subtract(from).scale(k / 12.0));
+						for (int k = 0; k <= 8; k++) {
+							Vec3 p = from.add(to.subtract(from).scale(k / 8.0));
 							level.sendParticles(KING_GOLD, true, true, p.x, p.y, p.z, 1, 0, 0, 0, 0);
 						}
 					}
 					// The shadow on the ground shows how far the blast will reach.
-					farRing(level, KING_SHADOW, start.add(0, 0.3, 0), radius, 96, phase, 0.0);
+					farRing(level, KING_SHADOW, start.add(0, 0.3, 0), radius, 64, phase, 0.0);
 				}
 				// The eight elements orbit, faster and faster, and spiral in during the last part.
 				double spin = age * (0.02 + 0.12 * progress * progress);
@@ -872,8 +875,8 @@ public final class SkillHandler {
 					double angle = spin + i * Math.PI / 4;
 					double x = sky.x + Math.cos(angle) * orbit;
 					double z = sky.z + Math.sin(angle) * orbit;
-					level.sendParticles(spiritParticle(spirits[i]), true, true, x, sky.y, z, 6, 0.6, 0.6, 0.6, 0.01);
-					level.sendParticles(new DustParticleOptions(spirits[i].color, 3.0f), true, true, x, sky.y, z, 3, 0.8, 0.8, 0.8, 0);
+					level.sendParticles(spiritParticle(spirits[i]), true, true, x, sky.y, z, 2, 0.6, 0.6, 0.6, 0.01);
+					level.sendParticles(new DustParticleOptions(spirits[i].color, 3.0f), true, true, x, sky.y, z, 1, 0.8, 0.8, 0.8, 0);
 				}
 				if (age % 20 == 0) {
 					sound(level, start, SoundEvents.BEACON_AMBIENT, 4.0f, 0.5f + (float) progress);
@@ -883,7 +886,7 @@ public final class SkillHandler {
 			int step = age - castTicks;
 			if (step == 0) {
 				// The merged core falls as a pillar of light.
-				for (double y = 0; y <= 30; y += 0.5) {
+				for (double y = 0; y <= 30; y += 1.0) {
 					level.sendParticles(KING_CORE, true, true, start.x, start.y + y, start.z, 3, 0.6, 0.2, 0.6, 0);
 					level.sendParticles(ParticleTypes.END_ROD, true, true, start.x, start.y + y, start.z, 2, 0.4, 0.2, 0.4, 0.02);
 				}
@@ -911,12 +914,12 @@ public final class SkillHandler {
 			}
 			// A shockwave ring of every element's color, with blasts along it.
 			Spirit[] spirits = Spirit.values();
-			int points = (int) (radius * 5);
+			int points = (int) (radius * 2.5);
 			for (int i = 0; i < points; i++) {
 				double angle = i * Math.PI * 2 / points;
 				double x = start.x + Math.cos(angle) * radius;
 				double z = start.z + Math.sin(angle) * radius;
-				level.sendParticles(new DustParticleOptions(spirits[i % spirits.length].color, 3.0f), true, true, x, start.y + 1.5, z, 3, 0.8, 1.2, 0.8, 0);
+				level.sendParticles(new DustParticleOptions(spirits[i % spirits.length].color, 3.0f), true, true, x, start.y + 1.5, z, 2, 0.8, 1.2, 0.8, 0);
 				if (i % 6 == 0) {
 					level.sendParticles(ParticleTypes.EXPLOSION, true, true, x, start.y + 1.0, z, 1, 0.5, 0.5, 0.5, 0);
 				}
