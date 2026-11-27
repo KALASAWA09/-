@@ -80,7 +80,7 @@ public final class SpiritHandler {
 			case WATER -> ParticleTypes.FALLING_WATER;
 			case DEATH -> ParticleTypes.SOUL;
 			case EARTH -> ParticleTypes.COMPOSTER;
-			case DARKNESS -> ParticleTypes.REVERSE_PORTAL;
+			case DARKNESS -> ParticleTypes.SMOKE; // the black smoke an End portal gives off
 			case LIGHTNING -> ParticleTypes.ELECTRIC_SPARK;
 			case STONE -> ParticleTypes.WHITE_ASH;
 		};
