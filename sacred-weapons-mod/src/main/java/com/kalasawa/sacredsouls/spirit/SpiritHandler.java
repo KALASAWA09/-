@@ -57,6 +57,9 @@ public final class SpiritHandler {
 	/** Health and food from the last second, to notice healing and eating. */
 	private static final Map<UUID, float[]> LAST_VITALS = new HashMap<>();
 	private static final ParticleOptions DEATH_SMOKE = new DustParticleOptions(0x3B1450, 1.2f);
+	private static final ParticleOptions SHADOW_DUST = new DustParticleOptions(0x1C0A2A, 1.1f);
+	private static final Map<UUID, Long> DARK_BLIND_READY = new HashMap<>();
+	private static final Map<UUID, Long> DARK_AMBUSH_READY = new HashMap<>();
 	private static final ParticleOptions GOLD_DUST = new DustParticleOptions(0xFFD86B, 0.8f);
 
 	private SpiritHandler() {
@@ -93,8 +96,20 @@ public final class SpiritHandler {
 		return other instanceof Enemy;
 	}
 
+	/** In a dark place (light 7 or less), or anywhere at night. */
 	private static boolean inDarkness(ServerPlayer player) {
-		return player.level().getMaxLocalRawBrightness(player.blockPosition()) <= 7;
+		long time = player.level().getDayTime() % 24000L;
+		boolean night = player.level().dimensionType().hasSkyLight() && time >= 13000L && time < 23000L;
+		return night || player.level().getMaxLocalRawBrightness(player.blockPosition()) <= 7;
+	}
+
+	/** The attacker is behind the victim, or the victim is a mob busy with someone else. */
+	private static boolean ambush(ServerPlayer attacker, LivingEntity victim) {
+		net.minecraft.world.phys.Vec3 look = victim.getLookAngle();
+		net.minecraft.world.phys.Vec3 toAttacker = attacker.position().subtract(victim.position()).normalize();
+		boolean behind = look.x * toAttacker.x + look.z * toAttacker.z < -0.3;
+		boolean unaware = victim instanceof net.minecraft.world.entity.Mob mob && mob.getTarget() != attacker;
+		return behind || unaware;
 	}
 
 	private static ParticleOptions particle(Spirit spirit, ServerPlayer player, int mote) {
@@ -108,8 +123,8 @@ public final class SpiritHandler {
 			// Dark purple smoke with dim drifting souls.
 			case DEATH -> mote % 2 == 0 ? DEATH_SMOKE : ParticleTypes.SOUL;
 			case EARTH -> ParticleTypes.COMPOSTER;
-			// The black smoke a Wither Rose gives off.
-			case DARKNESS -> ParticleTypes.SMOKE;
+			// Black shadow smoke with deep purple-black specks.
+			case DARKNESS -> mote % 2 == 0 ? ParticleTypes.SMOKE : SHADOW_DUST;
 			case LIGHTNING -> ParticleTypes.ELECTRIC_SPARK;
 			case STONE -> ParticleTypes.WHITE_ASH;
 		};
@@ -278,9 +293,16 @@ public final class SpiritHandler {
 			victim.igniteForTicks(Math.max(victim.getRemainingFireTicks(), 30));
 			amount += 1.0f;
 		}
+		// Darkness: strikes harder in the dark (or at night); level 3 adds an ambush bonus.
 		int darkness = level(attacker, Spirit.DARKNESS);
 		if (darkness > 0 && inDarkness(attacker)) {
-			amount *= 1.0f + pick(darkness, 0.20f, 0.30f, 0.40f);
+			amount *= darkness >= 3 ? 1.20f : 1.10f;
+		}
+		long tick = attacker.level().getGameTime();
+		if (darkness >= 3 && ambush(attacker, victim) && DARK_AMBUSH_READY.getOrDefault(attacker.getUUID(), 0L) <= tick) {
+			DARK_AMBUSH_READY.put(attacker.getUUID(), tick + 160);
+			amount *= 1.15f;
+			((ServerLevel) attacker.level()).sendParticles(SHADOW_DUST, victim.getX(), victim.getY() + 1.0, victim.getZ(), 12, 0.3, 0.5, 0.3, 0.0);
 		}
 		return amount;
 	}
@@ -342,8 +364,11 @@ public final class SpiritHandler {
 	/** After the player hits something in melee. */
 	public static void onHit(ServerPlayer attacker, LivingEntity victim) {
 		int darkness = level(attacker, Spirit.DARKNESS);
-		if (darkness > 0 && attacker.getRandom().nextFloat() < pick(darkness, 0.25f, 0.35f, 0.50f)) {
-			Effects.give(victim, "blindness", 0, 40);
+		long now = attacker.level().getGameTime();
+		if (darkness >= 2 && inDarkness(attacker) && DARK_BLIND_READY.getOrDefault(attacker.getUUID(), 0L) <= now
+				&& attacker.getRandom().nextFloat() < 0.20f) {
+			DARK_BLIND_READY.put(attacker.getUUID(), now + 240);
+			Effects.give(victim, "blindness", 0, 30);
 		}
 		int death = level(attacker, Spirit.DEATH);
 		if (death > 0 && attacker.getRandom().nextFloat() < (death >= 2 ? 0.25f : 0.15f)) {
