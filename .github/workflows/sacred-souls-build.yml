@@ -21,6 +21,11 @@ jobs:
         with:
           java-version: '25'
           distribution: 'microsoft'
+      # Caches Gradle and Minecraft downloads between runs, so Maven Central
+      # does not rate-limit us (HTTP 429) on every build.
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          build-root-directory: sacred-weapons-mod
       - run: chmod +x ./gradlew
       - run: ./gradlew build --stacktrace
       - uses: actions/upload-artifact@v4
