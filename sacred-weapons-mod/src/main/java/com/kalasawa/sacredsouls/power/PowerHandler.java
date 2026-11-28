@@ -1120,6 +1120,7 @@ public final class PowerHandler {
 			SoulData data = SoulManager.get(victim).copy();
 			data.killStreak = 0;
 			SoulManager.set(victim, data);
+			TitleManager.onDeath(victim, null);
 		}
 		states.remove(victim.getUUID());
 		chains.remove(victim.getUUID());

@@ -4,6 +4,8 @@ import java.util.Map;
 
 import com.mojang.serialization.Codec;
 
+import net.minecraft.network.codec.ByteBufCodecs;
+
 import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentSyncPredicate;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentType;
@@ -22,6 +24,13 @@ public final class ModAttachments {
 	public static final AttachmentType<Map<String, String>> TITLE_HOLDERS = AttachmentRegistry.create(SacredSouls.id("title_holders"), builder -> builder
 			.initializer(Map::of)
 			.persistent(Codec.unboundedMap(Codec.STRING, Codec.STRING)));
+
+	/**
+	 * A title offered to a player who already holds one, as "title_id|game time it runs out". Not saved: an offer
+	 * lasts only while the player is online and alive. Synced so the soul screen can show it.
+	 */
+	public static final AttachmentType<String> TITLE_OFFER = AttachmentRegistry.create(SacredSouls.id("title_offer"), builder -> builder
+			.syncWith(ByteBufCodecs.STRING_UTF8, AttachmentSyncPredicate.targetOnly()));
 
 	/** Game time when the Spirit King ultimate is ready again. Kept across logout and restarts. */
 	public static final AttachmentType<Long> ULTIMATE_READY = AttachmentRegistry.create(SacredSouls.id("ultimate_ready"), builder -> builder

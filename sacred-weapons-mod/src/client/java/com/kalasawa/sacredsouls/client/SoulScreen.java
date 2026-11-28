@@ -15,13 +15,16 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import com.kalasawa.sacredsouls.item.ModItems;
 import com.kalasawa.sacredsouls.network.SoulActionPayload;
 import com.kalasawa.sacredsouls.power.SoulPower;
+import com.kalasawa.sacredsouls.soul.ModAttachments;
 import com.kalasawa.sacredsouls.soul.SoulData;
 import com.kalasawa.sacredsouls.spirit.Spirit;
 import com.kalasawa.sacredsouls.title.SoulTitle;
+import com.kalasawa.sacredsouls.title.TitleManager;
 
 /**
  * The soul screen (K). Top: energy, essence, title. Middle: 5 slot boxes and the spirit slot.
- * Bottom: details of the selected slot with Upgrade and Eject.
+ * Bottom: details of the selected slot with Upgrade and Eject. While a title is on offer, the bottom asks
+ * whether to take it instead, with Accept and Decline and the time left.
  */
 public class SoulScreen extends Screen {
 	private static final int WIDTH = 250;
@@ -97,7 +100,21 @@ public class SoulScreen extends Screen {
 	}
 
 	private static String stateKey(SoulData data) {
-		return data.slots + "|" + data.levels + "|" + data.essence + "|" + data.energy + "|" + data.title + "|" + data.spirit;
+		return data.slots + "|" + data.levels + "|" + data.essence + "|" + data.energy + "|" + data.title + "|" + data.spirit
+				+ "|" + offer();
+	}
+
+	/** The raw title offer ("id|ends") synced from the server, or "" when there is none. */
+	private static String offer() {
+		var player = net.minecraft.client.Minecraft.getInstance().player;
+		String offer = player == null ? null : player.getAttached(ModAttachments.TITLE_OFFER);
+		return offer == null ? "" : offer;
+	}
+
+	private static SoulTitle offeredTitle() {
+		String offer = offer();
+		int bar = offer.indexOf('|');
+		return bar < 0 ? null : SoulTitle.byId(offer.substring(0, bar));
 	}
 
 	/** Mixes a power colour halfway to white so it reads well on a dark background. */
@@ -125,6 +142,17 @@ public class SoulScreen extends Screen {
 			addRenderableWidget(box);
 		}
 
+		if (offeredTitle() != null) {
+			int buttonY = panelY() + PANEL_HEIGHT + 6;
+			int half = (WIDTH - 6) / 2;
+			addRenderableWidget(Button.builder(Component.translatable("gui.sacredsouls.accept_title"),
+					b -> ClientPlayNetworking.send(new SoulActionPayload(SoulActionPayload.ACCEPT_TITLE, 0)))
+					.bounds(left(), buttonY, half, 20).build());
+			addRenderableWidget(Button.builder(Component.translatable("gui.sacredsouls.decline_title"),
+					b -> ClientPlayNetworking.send(new SoulActionPayload(SoulActionPayload.DECLINE_TITLE, 0)))
+					.bounds(left() + WIDTH - half, buttonY, half, 20).build());
+			return;
+		}
 		if (icon(data, selected) == null) {
 			return;
 		}
@@ -229,6 +257,11 @@ public class SoulScreen extends Screen {
 	}
 
 	private void renderDetails(GuiGraphics graphics, SoulData data, int x, int y, int width, SoulTitle title) {
+		SoulTitle offered = offeredTitle();
+		if (offered != null) {
+			renderOffer(graphics, offered, title, x, y, width);
+			return;
+		}
 		if (selected == SPIRIT) {
 			renderSpirit(graphics, data, x, y, width);
 			return;
@@ -274,6 +307,25 @@ public class SoulScreen extends Screen {
 		y = wrapped(graphics, Component.translatable("gui.sacredsouls.now", spirit.effect(level)), x, y, width, GREEN);
 		if (level < SoulData.MAX_LEVEL) {
 			wrapped(graphics, Component.translatable("gui.sacredsouls.next", spirit.effect(level + 1)), x, y + 2, width, DIM);
+		}
+	}
+
+	/** The title offer: what is offered, what it would replace, and the minutes left to decide. */
+	private void renderOffer(GuiGraphics graphics, SoulTitle offered, SoulTitle current, int x, int y, int width) {
+		graphics.drawString(this.font, Component.translatable("gui.sacredsouls.offer_header"), x, y, GOLD);
+		long left = 0;
+		var level = net.minecraft.client.Minecraft.getInstance().level;
+		if (level != null) {
+			left = Math.max(0, TitleManager.offerEnds(offer()) - level.getGameTime()) / 20;
+		}
+		String clock = String.format(java.util.Locale.ROOT, "%d:%02d", left / 60, left % 60);
+		graphics.drawString(this.font, clock, x + width - this.font.width(clock), y, left < 60 ? RED : GOLD);
+		y += 13;
+		graphics.drawString(this.font, offered.displayName(), x, y, GOLD);
+		y = wrapped(graphics, offered.buff(), x, y + 11, width, LIGHT);
+		y = wrapped(graphics, offered.proc(), x, y, width, LIGHT);
+		if (current != null) {
+			wrapped(graphics, Component.translatable("gui.sacredsouls.offer_swap", current.displayName()), x, y + 4, width, DIM);
 		}
 	}
 

@@ -319,7 +319,7 @@ public final class SoulManager {
 		victimData.killStreak = 0;
 		set(victim, victimData);
 
-		TitleManager.onKill(killer, victim);
+		TitleManager.onDeath(victim, killer);
 		changeEnergy(victim, -1);
 		changeEnergy(killer, 1);
 

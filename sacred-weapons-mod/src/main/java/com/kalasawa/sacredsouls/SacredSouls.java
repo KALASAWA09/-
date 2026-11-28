@@ -57,6 +57,10 @@ public class SacredSouls implements ModInitializer {
 				SoulManager.upgrade(context.player(), payload.slot());
 			} else if (payload.action() == SoulActionPayload.EJECT) {
 				SoulManager.eject(context.player(), payload.slot());
+			} else if (payload.action() == SoulActionPayload.ACCEPT_TITLE) {
+				TitleManager.accept(context.player());
+			} else if (payload.action() == SoulActionPayload.DECLINE_TITLE) {
+				TitleManager.decline(context.player(), false);
 			}
 		});
 		ServerPlayNetworking.registerGlobalReceiver(AirJumpPayload.TYPE, (payload, context) -> POWERS.onAirJump(context.player()));
@@ -65,6 +69,7 @@ public class SacredSouls implements ModInitializer {
 
 		ServerTickEvents.END_SERVER_TICK.register(POWERS::tick);
 		ServerTickEvents.END_SERVER_TICK.register(SkillHandler::tick);
+		ServerTickEvents.END_SERVER_TICK.register(TitleManager::tick);
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
 			BlockChanges.restoreAll();
 			com.kalasawa.sacredsouls.skill.KingShow.cleanupAll(server);
@@ -85,6 +90,7 @@ public class SacredSouls implements ModInitializer {
 		});
 		ServerPlayerEvents.LEAVE.register(player -> {
 			POWERS.onLeave(player);
+			TitleManager.onLeave(player);
 			SkillHandler.onLeave(player);
 		});
 
