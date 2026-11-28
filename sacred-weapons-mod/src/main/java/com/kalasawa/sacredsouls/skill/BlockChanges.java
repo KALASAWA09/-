@@ -12,6 +12,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -42,6 +43,11 @@ public final class BlockChanges {
 		boolean naturalOnly();
 
 		int regrowTicks();
+
+		/** True for the Spirit King's blast: it takes everything but bedrock and protected ground, containers included. */
+		default boolean everything() {
+			return false;
+		}
 	}
 
 	private static final PriorityQueue<Restore> RESTORES = new PriorityQueue<>(Comparator.comparingLong(Restore::at));
@@ -107,6 +113,29 @@ public final class BlockChanges {
 	}
 
 	/**
+	 * Erases any block that can be broken at all: water, lava, chests, obsidian and portals too. Only unbreakable
+	 * blocks (bedrock and the like) and ground the owner may not touch are spared. What a container held is gone
+	 * for good; it is emptied first so nothing spills out.
+	 */
+	public static boolean erase(ServerLevel level, ServerPlayer owner, BlockPos pos, int regrowTicks) {
+		if (!enabled()) {
+			return false;
+		}
+		BlockState state = level.getBlockState(pos);
+		if (state.isAir() || state.getDestroySpeed(level, pos) < 0 || (owner != null && !level.mayInteract(owner, pos))) {
+			return false;
+		}
+		if (state.hasBlockEntity() && level.getBlockEntity(pos) instanceof Container container) {
+			container.clearContent();
+		}
+		level.setBlock(pos.immutable(), Blocks.AIR.defaultBlockState(), FLAGS);
+		if (SkillConfig.blockMode == SkillConfig.BlockMode.TEMPORARY) {
+			RESTORES.add(new Restore(level, pos.immutable(), state, Blocks.AIR.defaultBlockState(), level.getGameTime() + regrowTicks));
+		}
+		return true;
+	}
+
+	/**
 	 * Places a block into an empty space for a moment (ice spikes, fire), whatever the setting,
 	 * as long as skills may change blocks at all. It is removed again after the given time.
 	 */
@@ -143,7 +172,8 @@ public final class BlockChanges {
 			if (!job.level().isLoaded(pos)) {
 				continue; // Never load or generate chunks just to blow them up.
 			}
-			if (breakBlock(job.level(), job.owner(), pos, job.naturalOnly(), job.regrowTicks())) {
+			if (job.everything() ? erase(job.level(), job.owner(), pos, job.regrowTicks())
+					: breakBlock(job.level(), job.owner(), pos, job.naturalOnly(), job.regrowTicks())) {
 				budget--;
 			}
 		}

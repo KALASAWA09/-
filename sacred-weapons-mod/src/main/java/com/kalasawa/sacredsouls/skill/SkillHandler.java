@@ -1693,6 +1693,8 @@ public final class SkillHandler {
 	private static final class CraterJob implements BlockChanges.Job {
 		/** How far above the caster's feet the blast still flattens the land. */
 		private static final int SURFACE_CAP = 80;
+		/** How far below the bowl the blast still drains water and lava. */
+		private static final int FLUID_REACH = 64;
 		private final ServerLevel level;
 		private final ServerPlayer owner;
 		private final List<int[]> columns = new ArrayList<>();
@@ -1739,7 +1741,8 @@ public final class SkillHandler {
 
 		@Override
 		public BlockPos next() {
-			while (column < 0 || y < bottom) {
+			// Below the bowl, keep going while there is water or lava, so a lake or the sea is drained to its bed.
+			while (column < 0 || (y < bottom && !fluidBelow())) {
 				column++;
 				if (column >= columns.size()) {
 					return null;
@@ -1750,6 +1753,15 @@ public final class SkillHandler {
 			}
 			int[] c = columns.get(column);
 			return new BlockPos(c[0], y--, c[1]);
+		}
+
+		/** Whether the block under the bowl at the current point still holds a fluid, within reach of the blast. */
+		private boolean fluidBelow() {
+			int[] c = columns.get(column);
+			if (y < c[3] - FLUID_REACH || y < level.getMinY()) {
+				return false;
+			}
+			return !level.getFluidState(new BlockPos(c[0], y, c[1])).isEmpty();
 		}
 
 		@Override
@@ -1770,6 +1782,11 @@ public final class SkillHandler {
 		@Override
 		public int regrowTicks() {
 			return regrowTicks;
+		}
+
+		@Override
+		public boolean everything() {
+			return true;
 		}
 	}
 }
