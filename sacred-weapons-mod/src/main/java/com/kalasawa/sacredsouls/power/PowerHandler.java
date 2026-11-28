@@ -610,6 +610,9 @@ public final class PowerHandler {
 		if (!(victim instanceof ServerPlayer player) || source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
 			return true;
 		}
+		if (com.kalasawa.sacredsouls.skill.SkillHandler.kingShielded(player)) {
+			return false;
+		}
 		ServerLevel level = (ServerLevel) player.level();
 		SoulData data = SoulManager.get(player);
 		int glass = level(player, SoulPower.MIRROR_GLASS);

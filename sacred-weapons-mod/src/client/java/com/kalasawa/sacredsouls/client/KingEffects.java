@@ -36,6 +36,7 @@ public final class KingEffects {
 	private static final ParticleOptions CORE = new DustParticleOptions(0xFFFFFF, 4.0f);
 	private static final ParticleOptions ASH = new DustParticleOptions(0x4A4442, 4.0f);
 	private static final ParticleOptions EMBER = new DustParticleOptions(0xFF7A1E, 4.0f);
+	private static final ParticleOptions CRIMSON = new DustParticleOptions(0xB0101C, 4.0f);
 
 	private static final double[] WAVES = {1.0 / 3.0, 2.0 / 3.0, 1.0};
 	private static final int WAVE_GAP = 22;
@@ -115,12 +116,18 @@ public final class KingEffects {
 		double t = (double) age / e.castTicks();
 		int pauseStart = e.castTicks() - PAUSE;
 		boolean pause = age >= pauseStart;
-		double circle = Mth.clamp(e.radius() * 0.3, 22, 45);
-		Vec3 sky = c.add(0, 45, 0);
+		double circle = com.kalasawa.sacredsouls.skill.KingShow.circleFor(e.radius());
+		double skyHeight = com.kalasawa.sacredsouls.skill.KingShow.skyFor(e.radius());
+		double grow = circle / 45.0;
+		Vec3 sky = c.add(0, skyHeight, 0);
 		// Embers drift up past the circle's rim.
 		if (!pause && age % 2 == 0) {
 			double a = random.nextDouble() * Math.PI * 2;
 			add(level, EMBER, sky.add(Math.cos(a) * circle, -random.nextDouble() * 4, Math.sin(a) * circle), 0, 0.02, 0);
+			// Crimson motes drift up all over the field, out to its edge.
+			double b = random.nextDouble() * Math.PI * 2;
+			double rr = Math.sqrt(random.nextDouble()) * e.radius();
+			add(level, CRIMSON, c.add(Math.cos(b) * rr, 0.5 + random.nextDouble() * 3, Math.sin(b) * rr), 0, 0.04, 0);
 		}
 		double spin = age * 0.012;
 
@@ -136,8 +143,8 @@ public final class KingEffects {
 				Spirit[] spirits = Spirit.values();
 				for (int i = 0; i < spirits.length; i++) {
 					double a = -Math.PI / 2 + i * Math.PI / 4 - turn;
-					Vec3 at = sky.add(Math.cos(a) * seal, -2.5, Math.sin(a) * seal);
-					add(level, element(spirits[i]), at.add(random.nextGaussian() * 1.5, random.nextGaussian() * 1.5, random.nextGaussian() * 1.5),
+					Vec3 at = sky.add(Math.cos(a) * seal, -2.5 * grow, Math.sin(a) * seal);
+					add(level, element(spirits[i]), at.add(random.nextGaussian() * 1.5 * grow, random.nextGaussian() * 1.5 * grow, random.nextGaussian() * 1.5 * grow),
 							random.nextGaussian() * 0.04, -0.05, random.nextGaussian() * 0.04);
 				}
 			}
@@ -146,14 +153,14 @@ public final class KingEffects {
 			int p = age - pauseStart;
 			double squeeze = 1.0 - p / (double) PAUSE;
 			for (int k = 0; k < 6; k++) {
-				Vec3 from = sky.add(random.nextGaussian() * 8 * squeeze, random.nextGaussian() * 8 * squeeze, random.nextGaussian() * 8 * squeeze);
+				Vec3 from = sky.add(random.nextGaussian() * 8 * grow * squeeze, random.nextGaussian() * 8 * grow * squeeze, random.nextGaussian() * 8 * grow * squeeze);
 				Vec3 in = sky.subtract(from).scale(0.25);
 				add(level, ParticleTypes.END_ROD, from, in.x, in.y, in.z);
 			}
 			add(level, CORE, sky, 0, 0, 0);
 			if (p > PAUSE / 2) {
 				double fall = (p - PAUSE / 2) / (PAUSE / 2.0);
-				line(level, CORE, sky, sky.add(0, -45 * fall, 0), 1.5, random);
+				line(level, CORE, sky, sky.add(0, -skyHeight * fall, 0), 1.5, random);
 			}
 		}
 		// Souls and ash rise from the ground around whoever is watching, inside the blast.

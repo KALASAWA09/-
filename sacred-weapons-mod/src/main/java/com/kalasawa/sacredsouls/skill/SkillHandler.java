@@ -24,6 +24,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
@@ -419,6 +420,16 @@ public final class SkillHandler {
 
 	// ---------------------------------------------------------------- one cast in flight
 
+	/** The Spirit King cannot be hurt from the moment the ultimate starts until a couple of seconds after the blast. */
+	public static boolean kingShielded(ServerPlayer player) {
+		for (Cast cast : CASTS) {
+			if (cast.player == player && cast.skill == Skill.KING && !cast.done && cast.age < cast.castTicks + 40) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private static final class Cast {
 		final ServerPlayer player;
 		final ServerLevel level;
@@ -429,7 +440,6 @@ public final class SkillHandler {
 		final LivingEntity locked;
 		final Vec3 start;
 		final Vec3 direction;
-		final float startHealth;
 		final List<LivingEntity> marked = new ArrayList<>();
 		final List<LivingEntity> wallCheck = new ArrayList<>();
 		final List<LivingEntity> bolts = new ArrayList<>();
@@ -464,7 +474,6 @@ public final class SkillHandler {
 				case LIGHT -> locked != null ? ground(level, locked.position().add(0, 0.5, 0)) : aim(player, 24);
 				default -> start;
 			};
-			this.startHealth = player.getHealth();
 			this.fx = new FxStage(level);
 		}
 
@@ -1566,13 +1575,6 @@ public final class SkillHandler {
 				}
 			}
 			if (age < castTicks) {
-				if (player.getHealth() < startHealth - 12.0f) {
-					say(player, "king_interrupted");
-					cancel();
-					sync(player);
-					done = true;
-					return;
-				}
 				Effects.keep(player, "slowness", 3, 5);
 				Effects.keep(player, "slow_falling", 0, 5);
 				double progress = (double) age / castTicks;
@@ -1703,9 +1705,13 @@ public final class SkillHandler {
 		private int column;
 		private int y;
 		private int bottom;
+		private final double full;
+		private final int centerX;
+		private final int centerZ;
 
 		CraterJob(ServerLevel level, ServerPlayer owner, Vec3 center, double inner, double outer, double full, int regrowTicks) {
 			this.level = level;
+			this.full = full;
 			double maxDepth = Mth.clamp(full / 7.5, 8, 20);
 			double maxHeight = Mth.clamp(full / 5.0, 12, 30);
 			this.owner = owner;
@@ -1713,6 +1719,8 @@ public final class SkillHandler {
 			this.regrowTicks = regrowTicks;
 			int cx = (int) Math.floor(center.x);
 			int cz = (int) Math.floor(center.z);
+			this.centerX = cx;
+			this.centerZ = cz;
 			int r = (int) Math.ceil(outer);
 			for (int dx = -r; dx <= r; dx++) {
 				for (int dz = -r; dz <= r; dz++) {
@@ -1743,6 +1751,9 @@ public final class SkillHandler {
 		public BlockPos next() {
 			// Below the bowl, keep going while there is water or lava, so a lake or the sea is drained to its bed.
 			while (column < 0 || (y < bottom && !fluidBelow())) {
+				if (column >= 0) {
+					scorch(columns.get(column), y);
+				}
 				column++;
 				if (column >= columns.size()) {
 					return null;
@@ -1753,6 +1764,42 @@ public final class SkillHandler {
 			}
 			int[] c = columns.get(column);
 			return new BlockPos(c[0], y--, c[1]);
+		}
+
+		/**
+		 * Burns the floor of a finished column: a black scar that is solid charcoal and magma near the centre and
+		 * breaks up into scorched patches and streaks towards the edge, with fires left burning here and there.
+		 */
+		private void scorch(int[] c, int floorY) {
+			BlockPos floor = new BlockPos(c[0], floorY, c[1]);
+			BlockState state = level.getBlockState(floor);
+			if (state.isAir() || !level.getFluidState(floor).isEmpty() || state.hasBlockEntity()) {
+				return;
+			}
+			double d = c[4] / 100.0 / full;
+			// Streaks radiating from the centre keep the scar from looking like a flat disc.
+			double angle = Math.atan2(c[1] - centerZ, c[0] - centerX);
+			double streak = 0.5 + 0.5 * Math.sin(angle * 23) * Math.sin(angle * 7 + 1.3);
+			double chance = d < 0.7 ? 1.0 : 1.0 - (d - 0.7) / 0.3 * (0.6 - streak * 0.5);
+			RandomSource random = level.random;
+			if (random.nextDouble() > chance) {
+				return;
+			}
+			double roll = random.nextDouble();
+			BlockState burnt;
+			if (d < 0.25) {
+				burnt = roll < 0.12 ? Blocks.MAGMA_BLOCK.defaultBlockState() : roll < 0.55 ? Blocks.COAL_BLOCK.defaultBlockState()
+						: roll < 0.8 ? Blocks.BLACKSTONE.defaultBlockState() : Blocks.BASALT.defaultBlockState();
+			} else if (d < 0.6) {
+				burnt = roll < 0.05 ? Blocks.MAGMA_BLOCK.defaultBlockState() : roll < 0.4 ? Blocks.BLACKSTONE.defaultBlockState()
+						: roll < 0.7 ? Blocks.BASALT.defaultBlockState() : Blocks.SOUL_SOIL.defaultBlockState();
+			} else {
+				burnt = roll < 0.45 ? Blocks.SOUL_SOIL.defaultBlockState() : roll < 0.6 ? Blocks.COARSE_DIRT.defaultBlockState()
+						: roll < 0.85 ? Blocks.BLACKSTONE.defaultBlockState() : Blocks.COAL_BLOCK.defaultBlockState();
+			}
+			if (BlockChanges.replace(level, owner, floor, burnt, false, regrowTicks) && d < 0.6 && random.nextDouble() < 0.015) {
+				BlockChanges.placeBriefly(level, owner, floor.above(), Blocks.FIRE.defaultBlockState(), Math.min(regrowTicks, 400));
+			}
 		}
 
 		/** Whether the block under the bowl at the current point still holds a fluid, within reach of the blast. */
