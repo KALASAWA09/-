@@ -68,6 +68,7 @@ public class SacredSouls implements ModInitializer {
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
 			BlockChanges.restoreAll();
 			com.kalasawa.sacredsouls.skill.KingShow.cleanupAll(server);
+			com.kalasawa.sacredsouls.skill.FxStage.cleanupAll(server);
 		});
 		ServerLivingEntityEvents.ALLOW_DAMAGE.register(POWERS::allowDamage);
 		ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamageTaken, damageTaken, blocked) ->

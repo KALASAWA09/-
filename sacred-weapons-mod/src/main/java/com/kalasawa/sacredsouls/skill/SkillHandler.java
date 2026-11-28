@@ -265,6 +265,7 @@ public final class SkillHandler {
 			cast.tick();
 			cast.age++;
 			if (cast.done) {
+				cast.fx.killAll();
 				it.remove();
 			}
 		}
@@ -272,6 +273,9 @@ public final class SkillHandler {
 		// Sweep up show entities left by a crash or an unloaded cast, whenever no ultimate is running.
 		if (server.getTickCount() % 400 == 0 && CASTS.stream().noneMatch(cast -> cast.skill == Skill.KING)) {
 			KingShow.cleanupAll(server);
+		}
+		if (server.getTickCount() % 400 == 200 && CASTS.isEmpty()) {
+			FxStage.cleanupAll(server);
 		}
 	}
 
@@ -432,6 +436,10 @@ public final class SkillHandler {
 		final List<Vec3> extra = new ArrayList<>();
 		/** The staging of the Spirit King ultimate: circles, storm, boss bar, cracks, sounds. */
 		KingShow show;
+		/** The 3D models and magic circles of this cast. */
+		final FxStage fx;
+		/** Where this cast's ground circle was placed. */
+		Vec3 circleAt;
 		int age;
 		boolean done;
 
@@ -457,6 +465,7 @@ public final class SkillHandler {
 				default -> start;
 			};
 			this.startHealth = player.getHealth();
+			this.fx = new FxStage(level);
 		}
 
 		void cancel() {
@@ -468,9 +477,11 @@ public final class SkillHandler {
 				show = null;
 			}
 			BLOOD.remove(player.getUUID());
+			fx.killAll();
 		}
 
 		void tick() {
+			fx.tick();
 			// Aimed skills keep following the locked enemy until just before they land.
 			if ((skill == Skill.FIRE || skill == Skill.LIGHT) && locked != null && locked.isAlive() && age < castTicks - 6) {
 				target = ground(level, locked.position().add(0, 0.5, 0));
@@ -490,6 +501,19 @@ public final class SkillHandler {
 
 		// ---- Fire: อุกกาบาตเพลิง. A huge meteor falls on the marked spot, with smaller ones raining around it.
 		void fire() {
+			// The four smaller meteors fall on their own clock, landing one after another after the great one.
+			if (age % 3 == 0) {
+				for (int i = 0; i < extra.size(); i++) {
+					if (age > castTicks + 4 + i * 5) {
+						continue;
+					}
+					int next = age + 3;
+					fx.move("small" + i, FxStage.axis(1, 0, -1, next * 0.4 + i), smallAt(i, next).subtract(extra.get(i)), 2.0, 3);
+					if (age > 0) {
+						far(ParticleTypes.FLAME, smallAt(i, age), 2, 0.4, 0.4, 0.4, 0.01);
+					}
+				}
+			}
 			if (age == 0) {
 				sound(level, start, SoundEvents.BLAZE_SHOOT, 2.0f, 0.5f);
 				sound(level, target, SoundEvents.ENDER_DRAGON_GROWL, 1.5f, 1.6f);
@@ -498,25 +522,26 @@ public final class SkillHandler {
 					double r = 4.0 + level.random.nextDouble() * 3.0;
 					extra.add(ground(level, target.add(Math.cos(angle) * r, 2.0, Math.sin(angle) * r)));
 				}
+				circle("fire_circle", target, 15, 8);
+				fx.model("meteor", "fire_meteor", target, FxStage.yaw(0), meteorAt(0).subtract(target), 0.5);
+				for (int i = 0; i < extra.size(); i++) {
+					fx.model("small" + i, "fire_meteor", extra.get(i), FxStage.yaw(i), smallAt(i, 0).subtract(extra.get(i)), 0.3);
+				}
 			}
 			if (age < castTicks) {
-				double t = (double) age / castTicks;
-				// The marked ground glows: a big ring of fire and magma dust.
+				// The circle of fire turns under the meteor and follows its target.
+				if (age > 8 && age % 4 == 0) {
+					turnCircle(target, 15, age * 0.06 + 0.6, 4);
+				}
+				// The meteor: a burning rock falling from high above, turning as it comes, trailing fire and smoke.
 				if (age % 3 == 0) {
-					farRing(level, FIRE_DUST, target.add(0, 0.15, 0), 7.0, 28, age * 0.05, 0.1);
-					farRing(level, ParticleTypes.FLAME, target.add(0, 0.2, 0), 7.0 * t, 14, -age * 0.08, 0.1);
+					int next = age + 3;
+					fx.move("meteor", FxStage.axis(1, 0.3, 1, next * 0.3), meteorAt(next).subtract(target), 5.0, 3);
 				}
-				// The meteor: a ball of fire falling from high above, trailing smoke.
-				Vec3 ball = target.add(direction.scale(-10.0 * (1 - t))).add(0, 30.0 * (1 - t) + 1.0, 0);
-				far(ParticleTypes.FLAME, ball, 12, 0.9, 0.9, 0.9, 0.02);
-				far(FIRE_CORE, ball, 4, 0.6, 0.6, 0.6, 0);
-				far(ParticleTypes.LAVA, ball, 2, 0.6, 0.6, 0.6, 0);
-				far(ParticleTypes.CAMPFIRE_SIGNAL_SMOKE, ball.add(direction.scale(-1.5)).add(0, 1.5, 0), 2, 0.4, 0.4, 0.4, 0.01);
-				for (int i = 0; i < extra.size(); i++) {
-					double lag = Math.max(0, t - 0.2 - i * 0.1) / 0.8;
-					Vec3 small = extra.get(i).add(direction.scale(-6.0 * (1 - lag))).add(0, 22.0 * (1 - lag) + 1.0, 0);
-					far(ParticleTypes.FLAME, small, 4, 0.4, 0.4, 0.4, 0.01);
-				}
+				Vec3 ball = meteorAt(age);
+				far(ParticleTypes.FLAME, ball, 6, 1.4, 1.4, 1.4, 0.02);
+				far(ParticleTypes.LAVA, ball, 1, 0.8, 0.8, 0.8, 0);
+				far(ParticleTypes.CAMPFIRE_SIGNAL_SMOKE, ball.add(direction.scale(-2.5)).add(0, 2.5, 0), 2, 0.6, 0.6, 0.6, 0.01);
 				if (age == castTicks - 6) {
 					sound(level, target, SoundEvents.FIRECHARGE_USE, 2.0f, 0.5f);
 				}
@@ -524,6 +549,9 @@ public final class SkillHandler {
 			}
 			int step = age - castTicks;
 			if (step == 0) {
+				fx.kill("meteor");
+				endCircle(18, 20);
+				shockwave("wave", "fire_wave", target, 9.0, 8);
 				far(ParticleTypes.EXPLOSION_EMITTER, target.add(0, 1, 0), 3, 2.0, 1.0, 2.0, 0);
 				far(ParticleTypes.FLAME, target.add(0, 1, 0), 120, 3.5, 1.5, 3.5, 0.25);
 				far(ParticleTypes.LAVA, target.add(0, 1, 0), 30, 3.0, 1.0, 3.0, 0);
@@ -548,6 +576,8 @@ public final class SkillHandler {
 			for (int i = 0; i < extra.size(); i++) {
 				if (step == 4 + i * 5) {
 					Vec3 at = extra.get(i);
+					fx.kill("small" + i);
+					shockwave("swave" + i, "fire_wave", at, 3.5, 5);
 					far(ParticleTypes.EXPLOSION, at.add(0, 1, 0), 3, 1.0, 0.5, 1.0, 0);
 					far(ParticleTypes.FLAME, at.add(0, 1, 0), 40, 1.5, 0.8, 1.5, 0.15);
 					sound(level, at, SoundEvents.GENERIC_EXPLODE, 1.5f, 1.0f);
@@ -572,15 +602,25 @@ public final class SkillHandler {
 			if (age == 0) {
 				sound(level, target, SoundEvents.ENCHANTMENT_TABLE_USE, 2.0f, 0.6f);
 				sound(level, target, SoundEvents.BEACON_POWER_SELECT, 2.0f, 0.8f);
+				circle("light_circle", target, 19, 10);
+				// A second circle hangs in the air, and a sword of light forms above it.
+				fx.model("sky", "light_circle", target.add(0, 16, 0), FxStage.flat(0), Vec3.ZERO, 0.1);
+				fx.move("sky", FxStage.flat(-0.6), Vec3.ZERO, 13, 10);
+				fx.model("sword", "light_sword", target, FxStage.yaw(0), new Vec3(0, 46, 0), 0.2);
+				fx.move("sword", FxStage.yaw(1.2), new Vec3(0, 34, 0), 4.5, castTicks - 4);
 			}
 			if (age < castTicks) {
 				double grow = Math.min(1.0, 0.25 + 1.2 * age / castTicks);
+				if (age > 10 && age % 5 == 0) {
+					Vec3 shift = target.add(0, 0.12, 0).subtract(circleAt);
+					turnCircle(target, 19, age * 0.05 + 0.6, 5);
+					fx.move("sky", FxStage.flat(-age * 0.07 - 0.6), shift, 13, 5);
+				}
+				if (age == castTicks - 4) {
+					fx.move("sword", FxStage.yaw(1.6), target.subtract(circleAt).add(0, 34.12, 0), 4.5, 4);
+				}
 				if (age % 2 == 0) {
-					farRing(level, LIGHT_DUST, target.add(0, 0.1, 0), 9.0 * grow, 40, age * 0.04, 0);
-					farRing(level, LIGHT_DUST, target.add(0, 0.1, 0), 7.0 * grow, 30, -age * 0.05, 0);
 					farRing(level, ParticleTypes.END_ROD, target.add(0, 0.3, 0), 4.0 * grow, 12, age * 0.1, 0);
-					// A second circle hangs in the air above, turning the other way.
-					farRing(level, LIGHT_DUST, target.add(0, 16, 0), 6.0 * grow, 26, -age * 0.06, 0);
 				}
 				// Eight rays rise from the outer circle.
 				if (age % 4 == 0) {
@@ -598,6 +638,17 @@ public final class SkillHandler {
 			}
 			int step = age - castTicks;
 			if (step == 0) {
+				// The sword falls and buries itself in the marked ground; a beam of light comes down with it.
+				Vec3 shift = target.subtract(circleAt).add(0, 0.12, 0);
+				fx.move("sword", FxStage.yaw(1.6), shift.add(0, 4.5 * 1.5 - 1.5, 0), 4.5, 2);
+				fx.model("beam", "king_pillar", target, FxStage.yaw(0), new Vec3(0, 40, 0), 3.5, 40 / 1.5, 3.5);
+				fx.move("beam", FxStage.yaw(0.8), new Vec3(0, 40, 0), 0.05, 40 / 1.5, 0.05, 26);
+				fx.killLater("beam", 28);
+				fx.move("sky", FxStage.flat(-3.0), shift, 0.01, 8);
+				fx.killLater("sky", 9);
+				endCircle(22, 28);
+				fx.later(26, () -> fx.move("sword", FxStage.yaw(1.6), shift.add(0, -3, 0), 0.01, 6));
+				fx.killLater("sword", 33);
 				sound(level, target, SoundEvents.BEACON_ACTIVATE, 3.0f, 1.2f);
 				sound(level, target, SoundEvents.LIGHTNING_BOLT_THUNDER, 2.0f, 1.8f);
 				sound(level, target, SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 3.0f, 0.6f);
@@ -625,9 +676,9 @@ public final class SkillHandler {
 				});
 			}
 			// The pillar: a wide column of light from 40 blocks up, burning for a second and a half.
-			if (step < 30) {
+			if (step < 30 && step % 2 == 0) {
 				double width = step < 4 ? 2.5 : 2.5 * (1.0 - (step - 4) / 30.0);
-				for (double y = 0; y <= 40; y += 2.0) {
+				for (double y = 0; y <= 40; y += 4.0) {
 					far(ParticleTypes.END_ROD, target.add(0, y, 0), 2, width * 0.5, 1.0, width * 0.5, 0.0);
 					if (step % 2 == 0) {
 						far(PILLAR_DUST, target.add(0, y, 0), 1, width * 0.4, 1.0, width * 0.4, 0);
@@ -639,7 +690,13 @@ public final class SkillHandler {
 				int i = (step - 6) / 3;
 				double angle = i * Math.PI / 3 + 0.4;
 				Vec3 at = ground(level, target.add(Math.cos(angle) * 6.0, 2.0, Math.sin(angle) * 6.0));
-				for (double y = 0; y <= 20; y += 1.0) {
+				// A smaller sword drops out of the sky and strikes.
+				String lance = "lance" + i;
+				fx.model(lance, "light_sword", at, FxStage.yaw(angle), new Vec3(0, 14, 0), 1.6);
+				fx.move(lance, FxStage.yaw(angle), new Vec3(0, 1.6 * 1.5 - 0.6, 0), 1.6, 2);
+				fx.later(14, () -> fx.move(lance, FxStage.yaw(angle), new Vec3(0, -1, 0), 0.01, 5));
+				fx.killLater(lance, 20);
+				for (double y = 0; y <= 20; y += 3.0) {
 					far(ParticleTypes.END_ROD, at.add(0, y, 0), 1, 0.15, 0.4, 0.15, 0.0);
 				}
 				far(ParticleTypes.FIREWORK, at.add(0, 0.5, 0), 25, 1.0, 0.3, 1.0, 0.15);
@@ -648,53 +705,61 @@ public final class SkillHandler {
 					hit(level, player, enemy, 2.0f);
 				}
 			}
-			if (step >= 40) {
+			if (step >= 44) {
 				done = true;
 			}
 		}
 
-		// ---- Water: คลื่นยักษ์. A wall of water rises and rolls forward, sweeping enemies away.
+		// ---- Water: มังกรวารี. A dragon of water rises out of a circle, coils once around the caster, then dives
+		// forward through everything in its path and crashes into the ground in a great splash.
+		static final int DRAGON_LENGTH = 12;
+		final List<Vec3> trail = new ArrayList<>();
+
 		void water() {
 			if (age == 0) {
 				sound(level, start, SoundEvents.BUCKET_EMPTY, 2.0f, 0.5f);
 				sound(level, start, SoundEvents.ELDER_GUARDIAN_CURSE, 1.0f, 1.4f);
+				circle("water_circle", start, 9, 8);
+				Vec3 rise = dragonAt(0).subtract(start).add(0, -2, 0);
+				fx.model("head", "water_dragon_head", start, FxStage.yaw(0), rise, 0.1);
+				for (int i = 0; i < DRAGON_LENGTH; i++) {
+					fx.model("body" + i, segment(i), start, FxStage.yaw(0), rise, 0.1);
+				}
+			}
+			trail.add(dragonAt(age));
+			if (age > 0 && age % 2 == 0) {
+				moveDragon();
+			}
+			Vec3 head = trail.get(trail.size() - 1);
+			if (age < castTicks + 14) {
+				far(ParticleTypes.SPLASH, head, 8, 0.8, 0.8, 0.8, 0.15);
+				if (age % 3 == 0) {
+					far(ParticleTypes.CLOUD, head, 1, 0.4, 0.4, 0.4, 0.01);
+					// Water streams off its body as it flies.
+					for (int i = 2; i < DRAGON_LENGTH; i += 3) {
+						far(ParticleTypes.FALLING_WATER, back(1.7 + i * 1.3), 3, 0.5, 0.3, 0.5, 0.0);
+					}
+				}
 			}
 			if (age < castTicks) {
-				// Water spirals up around the caster.
-				Vec3 at = player.position();
-				double t = (double) age / castTicks;
-				for (int i = 0; i < 3; i++) {
-					double angle = age * 0.6 + i * Math.PI * 2 / 3;
-					far(WATER_DUST, at.add(Math.cos(angle) * 2.0, t * 3.0, Math.sin(angle) * 2.0), 2, 0.1, 0.1, 0.1, 0);
+				far(ParticleTypes.SPLASH, start.add(0, 0.5, 0), 8, 2.0, 0.3, 2.0, 0.1);
+				if (age == castTicks / 2) {
+					sound(level, start, SoundEvents.ENDER_DRAGON_GROWL, 1.0f, 1.8f);
 				}
-				far(ParticleTypes.SPLASH, at.add(0, 0.5, 0), 12, 2.0, 0.3, 2.0, 0.1);
 				return;
 			}
 			int step = age - castTicks;
 			if (step == 0) {
+				endCircle(11, 6);
 				sound(level, start, SoundEvents.PLAYER_SPLASH_HIGH_SPEED, 3.0f, 0.4f);
-				sound(level, start, SoundEvents.GENERIC_SPLASH, 3.0f, 0.5f);
+				sound(level, start, SoundEvents.ENDER_DRAGON_GROWL, 1.5f, 1.4f);
 			}
-			// The wave: 4 blocks tall, widening as it rolls 16 blocks forward.
-			double front = Math.min(16.0, step * 1.2 + 1.0);
-			double halfWidth = 2.0 + front * 0.45;
-			if (front < 16.0) {
-				for (double side = -halfWidth; side <= halfWidth; side += 1.2) {
-					Vec3 at = start.add(direction.scale(front)).add(-direction.z * side, 0, direction.x * side);
-					at = ground(level, at.add(0, 2, 0));
-					double curl = 1.0 - Math.abs(side) / halfWidth;
-					double height = 1.5 + 2.5 * curl;
-					far(WATER_DUST, at.add(0, height * 0.5, 0), 2, 0.3, height * 0.35, 0.3, 0);
-					far(ParticleTypes.SPLASH, at.add(0, height, 0), 3, 0.3, 0.3, 0.3, 0.15);
-					if (((int) (side * 10)) % 3 == 0) {
-						far(ParticleTypes.CLOUD, at.add(0, height + 0.3, 0), 1, 0.2, 0.1, 0.2, 0.02);
-						far(ParticleTypes.FALLING_WATER, at.add(0, height, 0), 2, 0.3, 0.3, 0.3, 0);
-					}
-				}
+			// The dragon dives along the line, 1.2 blocks a tick, striking whatever it passes once.
+			if (step <= 13) {
+				double front = Math.min(16.0, step * 1.2 + 1.0);
 				if (step % 4 == 0) {
 					sound(level, start.add(direction.scale(front)), SoundEvents.GENERIC_SPLASH, 1.5f, 0.6f + step * 0.03f);
 				}
-				// Whatever the front passes is struck once and carried along.
 				boolean wet = level.isRainingAt(player.blockPosition().above()) || player.isInWater();
 				for (LivingEntity enemy : enemiesNear(player, start, front + 1.0)) {
 					if (marked.contains(enemy)) {
@@ -703,19 +768,18 @@ public final class SkillHandler {
 					Vec3 to = enemy.position().subtract(start);
 					double along = to.dot(direction);
 					double across = Math.abs(to.x * -direction.z + to.z * direction.x);
-					if (along < front - 1.8 || along > front + 1.0 || across > halfWidth + 1.0) {
+					if (along < front - 1.8 || along > front + 1.0 || across > 3.5) {
 						continue;
 					}
 					marked.add(enemy);
 					hit(level, player, enemy, wet ? 8.0f : 6.0f);
 					enemy.clearFire();
 					Effects.give(enemy, "slowness", 1, 60);
-					enemy.setDeltaMovement(direction.x * 2.2, 0.55, direction.z * 2.2);
+					enemy.setDeltaMovement(direction.x * 1.8, 0.6, direction.z * 1.8);
 					enemy.hurtMarked = true;
 					wallCheck.add(enemy);
 				}
-				// The wave sweeps away plants, leaves and snow.
-				for (double side = -halfWidth; side <= halfWidth; side += 1.0) {
+				for (double side = -2.0; side <= 2.0; side += 1.0) {
 					Vec3 at = start.add(direction.scale(front)).add(-direction.z * side, 0, direction.x * side);
 					for (int dy = 0; dy <= 3; dy++) {
 						BlockPos pos = BlockPos.containing(at).above(dy);
@@ -724,12 +788,19 @@ public final class SkillHandler {
 						}
 					}
 				}
-			} else if (step == 14) {
-				// The wave breaks at the end in a great spray.
-				Vec3 end = start.add(direction.scale(16.0));
-				far(ParticleTypes.SPLASH, end.add(0, 2, 0), 120, halfWidth * 0.6, 1.5, halfWidth * 0.6, 0.3);
-				far(ParticleTypes.CLOUD, end.add(0, 2, 0), 20, halfWidth * 0.5, 1.0, halfWidth * 0.5, 0.05);
+			}
+			if (step == 13) {
+				// It crashes into the ground in a great splash.
+				Vec3 end = ground(level, start.add(direction.scale(16.0)).add(0, 2, 0));
+				shockwave("ring", "water_ring", end, 6.0, 8);
+				far(ParticleTypes.SPLASH, end.add(0, 2, 0), 160, 3.0, 1.5, 3.0, 0.4);
+				far(ParticleTypes.CLOUD, end.add(0, 2, 0), 25, 2.5, 1.0, 2.5, 0.05);
 				sound(level, end, SoundEvents.PLAYER_SPLASH_HIGH_SPEED, 3.0f, 0.5f);
+				sound(level, end, SoundEvents.GENERIC_EXPLODE, 1.5f, 1.2f);
+				for (LivingEntity enemy : enemiesNear(player, end, 5.0)) {
+					hit(level, player, enemy, 3.0f);
+					knock(enemy, end, 1.0, 0.6);
+				}
 			}
 			// Slammed into a wall: one more hit.
 			for (Iterator<LivingEntity> it = wallCheck.iterator(); it.hasNext();) {
@@ -741,14 +812,91 @@ public final class SkillHandler {
 					it.remove();
 				}
 			}
-			if (step >= 30) {
+			if (step >= 13 + DRAGON_LENGTH + 4) {
 				done = true;
 			}
 		}
 
-		// ---- Death: ยมทูตเก็บวิญญาณ. The ground turns to souls, a giant scythe sweeps, life flows back.
+		/** Where the dragon's head is at a tick: coiling up around the caster, then diving forward and into the ground. */
+		Vec3 dragonAt(int tick) {
+			if (tick <= castTicks) {
+				double u = (double) tick / castTicks;
+				double end = Math.atan2(-direction.z, -direction.x);
+				double a = end - Math.PI * 2.5 * (1 - u);
+				double r = 1.5 + 1.5 * u;
+				return start.add(Math.cos(a) * r, 0.5 + 6.0 * u, Math.sin(a) * r);
+			}
+			int step = tick - castTicks;
+			if (step <= 13) {
+				double k = step / 13.0;
+				double front = Math.min(16.0, step * 1.2 + 1.0);
+				Vec3 line = start.add(direction.scale(front)).add(0, 6.5 * (1 - k) * (1 - k) + 1.0 + 2.0 * Math.sin(k * Math.PI), 0);
+				// Swing out of the coil smoothly over the first few ticks of the dive.
+				double blend = Math.min(1.0, (step + 1) / 4.0);
+				return dragonAt(castTicks).scale(1 - blend).add(line.scale(blend));
+			}
+			int under = step - 13;
+			return start.add(direction.scale(16.0 + under * 0.8)).add(0, 1.0 - under * 1.4, 0);
+		}
+
+		/** The head goes where the path says; the body is laid along the path behind it, so it never breaks apart however fast it flies. */
+		void moveDragon() {
+			fx.move("head", headingAt(0), back(0).subtract(start), 3.0, 2);
+			double dist = 2.0;
+			for (int i = 0; i < DRAGON_LENGTH; i++) {
+				double size = 2.3 - 1.3 * i / (DRAGON_LENGTH - 1.0);
+				fx.move("body" + i, headingAt(dist), back(dist).subtract(start), size, 2);
+				dist += size * 0.75;
+			}
+		}
+
+		/** The point a distance back along the path from the head. */
+		Vec3 back(double dist) {
+			int i = trail.size() - 1;
+			Vec3 at = trail.get(i);
+			double left = Math.max(0, dist);
+			while (i > 0) {
+				Vec3 prev = trail.get(i - 1);
+				double len = at.distanceTo(prev);
+				if (len >= left && len > 1.0E-6) {
+					return at.add(prev.subtract(at).scale(left / len));
+				}
+				left -= len;
+				at = prev;
+				i--;
+			}
+			return at;
+		}
+
+		/** The rotation that points a model's +x along the path at a distance back from the head. */
+		float[] headingAt(double dist) {
+			Vec3 d = back(dist - 0.5).subtract(back(dist + 0.5));
+			if (d.lengthSqr() < 1.0E-4) {
+				d = direction;
+			}
+			double flat = Math.sqrt(d.x * d.x + d.z * d.z);
+			return FxStage.mul(FxStage.yaw(-Math.atan2(d.z, d.x)), FxStage.axis(0, 0, 1, Math.atan2(d.y, flat)));
+		}
+
+		/** The dragon's body: clawed legs at the front and back, a fanned tail at the end. */
+		static String segment(int i) {
+			if (i == DRAGON_LENGTH - 1) {
+				return "water_dragon_tail";
+			}
+			return i == 1 || i == 7 ? "water_dragon_legs" : "water_dragon_body";
+		}
+
+		// ---- Death: ดอกไม้แห่งยมโลก. Spider lilies of the underworld bloom across a graveyard that rises around the caster.
+		// A lily blooms under every enemy and drinks its soul, and the great lily behind the caster closes over them all.
+		static final double LILY = 4.0;
+		static final double BLOOM = 1.8;
+		static final double GRAVE = 1.8;
+		static final double YARD = 9.5;
+
 		void death() {
 			Vec3 center = player.position();
+			Vec3 lilyAt = ground(level, start.add(direction.scale(-3.5)).add(0, 2, 0));
+			Vec3 flower = lilyAt.add(0, LILY * 21 / 16.0, 0);
 			if (age == 0) {
 				sound(level, start, SoundEvents.SOUL_ESCAPE, 3.0f, 0.5f);
 				sound(level, start, SoundEvents.WITHER_AMBIENT, 1.5f, 0.6f);
@@ -758,82 +906,159 @@ public final class SkillHandler {
 						BlockChanges.replace(level, player, pos, Blocks.SOUL_SOIL.defaultBlockState(), true, regrow());
 					}
 				});
+				circle("death_circle", start, 19, 12);
+				// The great lily grows out of the ground behind the caster, two flowers turned against each other.
+				for (int k = 0; k < 2; k++) {
+					float[] q = FxStage.yaw(k * Math.PI / 4);
+					fx.model("lily" + k, "death_lily", lilyAt, q, new Vec3(0, 0.15, 0), 0.1);
+					fx.move("lily" + k, q, new Vec3(0, 1.5 * LILY, 0), LILY, castTicks);
+				}
+				// Gravestones rise in a ring, each facing the caster, with smaller lilies between them.
+				for (int i = 0; i < 8; i++) {
+					double a = i * Math.PI / 4 + Math.PI / 8;
+					Vec3 at = ground(level, start.add(Math.cos(a) * YARD, 2, Math.sin(a) * YARD));
+					float[] q = FxStage.yaw(Math.atan2(-Math.cos(a), -Math.sin(a)));
+					String name = "grave" + i;
+					fx.model(name, "death_grave", at, q, new Vec3(0, 0.5 * GRAVE - 2.6, 0), GRAVE);
+					fx.later(2 + i, () -> fx.move(name, q, new Vec3(0, 0.5 * GRAVE, 0), GRAVE, 8));
+					double b = i * Math.PI / 4;
+					Vec3 spot = ground(level, start.add(Math.cos(b) * 6.5, 2, Math.sin(b) * 6.5));
+					float[] turn = FxStage.yaw(b * 3);
+					String flowerName = "flower" + i;
+					fx.model(flowerName, "death_lily", spot, turn, new Vec3(0, 0.15, 0), 0.1);
+					fx.later(4 + i, () -> fx.move(flowerName, turn, new Vec3(0, 1.5 * 1.3, 0), 1.3, 8));
+				}
 			}
 			if (age < castTicks) {
-				double t = (double) age / castTicks;
-				if (age % 2 == 0) {
-					farRing(level, ParticleTypes.SOUL_FIRE_FLAME, center.add(0, 0.2, 0), 9.0, 36, age * 0.06, 0.1);
-					farRing(level, DEATH_DUST, center.add(0, 0.4, 0), 8.2, 24, -age * 0.05, 0.1);
+				if (age % 4 == 0) {
+					farRing(level, ParticleTypes.SOUL_FIRE_FLAME, center.add(0, 0.2, 0), 9.0, 24, age * 0.06, 0.1);
+					if (age > 12) {
+						turnCircle(null, 19, age * 0.06 + 0.6, 4);
+					}
 				}
-				// Souls rise from the ground and gather above the caster into the scythe.
 				far(ParticleTypes.SOUL, center.add(0, 0.5, 0), 6, 6.0, 0.2, 6.0, 0.05);
-				far(ParticleTypes.SCULK_SOUL, center.add(0, 4.0 + t * 2, 0), 3, 0.8, 0.8, 0.8, 0.02);
+				far(ParticleTypes.CRIMSON_SPORE, flower, 6, 2.0, 1.0, 2.0, 0.0);
 				return;
 			}
 			int step = age - castTicks;
-			if (step < 10) {
-				// The scythe: a wide arc of soul fire, a fifth of the circle per tick, twice around.
-				for (int i = 0; i < 10; i++) {
-					double angle = (step + i / 10.0) * Math.PI / 2.5;
-					for (double r = 2.0; r <= 9.0; r += 1.4) {
-						far(ParticleTypes.SOUL_FIRE_FLAME, center.add(Math.cos(angle) * r, 1.0 + r * 0.08, Math.sin(angle) * r), 1, 0, 0.1, 0, 0.0);
-					}
-					far(DEATH_DUST, center.add(Math.cos(angle) * 9.2, 1.2, Math.sin(angle) * 9.2), 1, 0.1, 0.3, 0.1, 0);
-				}
-				far(ParticleTypes.SWEEP_ATTACK, center.add(Math.cos(step * Math.PI / 2.5) * 5.0, 1.2, Math.sin(step * Math.PI / 2.5) * 5.0), 3, 1.5, 0.2, 1.5, 0);
-				if (step % 3 == 0) {
-					sound(level, center, SoundEvents.PLAYER_ATTACK_SWEEP, 2.0f, 0.5f);
-				}
-			}
 			if (step == 0) {
+				// A lily bursts open under every enemy in reach and holds it there.
 				sound(level, center, SoundEvents.WITHER_SHOOT, 2.0f, 0.5f);
+				sound(level, flower, SoundEvents.WARDEN_SONIC_CHARGE, 2.0f, 0.6f);
 				float dealt = 0;
+				int blooms = 0;
 				for (LivingEntity enemy : enemiesNear(player, center, 9.0)) {
 					float before = enemy.getHealth();
 					hit(level, player, enemy, 7.0f);
 					Effects.give(enemy, "wither", 1, 80);
+					Effects.give(enemy, "slowness", 6, 30);
 					dealt += Math.max(0, before - enemy.getHealth());
 					marked.add(enemy);
-					knock(enemy, center, -0.6, 0.3);
+					enemy.setDeltaMovement(0, Math.min(0, enemy.getDeltaMovement().y), 0);
+					enemy.hurtMarked = true;
+					if (blooms < 8) {
+						String name = "bloom" + blooms++;
+						float[] q = FxStage.yaw(level.random.nextDouble() * Math.PI * 2);
+						fx.model(name, "death_lily", enemy.position(), q, new Vec3(0, 0.15, 0), 0.1);
+						fx.move(name, q, new Vec3(0, 1.5 * BLOOM, 0), BLOOM, 3);
+						far(ParticleTypes.CRIMSON_SPORE, enemy.position().add(0, 0.5, 0), 20, 0.8, 0.4, 0.8, 0.02);
+						far(ParticleTypes.SOUL, enemy.position().add(0, 0.5, 0), 12, 0.6, 0.3, 0.6, 0.05);
+					}
 				}
 				player.heal(Math.min(dealt * 0.5f, 6.0f));
 			}
-			// The souls of everything struck stream back into the caster.
-			if (step > 0 && step < 20 && step % 2 == 0) {
+			// The souls of everything struck stream up into the great lily.
+			if (step > 0 && step < 18 && step % 2 == 0) {
 				for (LivingEntity enemy : marked) {
-					line(level, ParticleTypes.SOUL, enemy.position().add(0, 1.2, 0), center.add(0, 1.2, 0), 0.8);
+					line(level, ParticleTypes.SOUL, enemy.position().add(0, 1.2, 0), flower, 0.8);
 				}
+				far(ParticleTypes.SCULK_SOUL, flower, 4, 0.8, 0.5, 0.8, 0.02);
 			}
-			if (step >= 22) {
+			if (step == 18) {
+				// The great lily closes over the souls it drank.
+				for (int k = 0; k < 2; k++) {
+					float[] q = FxStage.yaw(k * Math.PI / 4 + 0.6);
+					fx.move("lily" + k, q, new Vec3(0, 1.5 * LILY * 1.15, 0), LILY * 0.45, LILY * 1.15, LILY * 0.45, 4);
+				}
+				sound(level, flower, SoundEvents.EVOKER_FANGS_ATTACK, 2.0f, 0.5f);
+			}
+			if (step == 22) {
+				far(ParticleTypes.SOUL, flower, 60, 1.5, 1.5, 1.5, 0.15);
+				far(ParticleTypes.CRIMSON_SPORE, center.add(0, 1, 0), 80, 8.0, 1.0, 8.0, 0.02);
+				sound(level, flower, SoundEvents.SOUL_ESCAPE, 3.0f, 0.4f);
+				for (int k = 0; k < 2; k++) {
+					fx.move("lily" + k, FxStage.yaw(k * Math.PI / 4 + 1.2), new Vec3(0, 0.15, 0), 0.01, 8);
+				}
+				for (int i = 0; i < 8; i++) {
+					double a = i * Math.PI / 4 + Math.PI / 8;
+					float[] q = FxStage.yaw(Math.atan2(-Math.cos(a), -Math.sin(a)));
+					fx.move("grave" + i, q, new Vec3(0, 0.5 * GRAVE - 2.6, 0), GRAVE, 8);
+					fx.move("flower" + i, FxStage.yaw(i * Math.PI / 4 * 3), new Vec3(0, 0.15, 0), 0.01, 6);
+					fx.move("bloom" + i, FxStage.yaw(0), new Vec3(0, 0.15, 0), 0.01, 6);
+				}
+				endCircle(21, 8);
+			}
+			if (step >= 32) {
 				done = true;
 			}
 		}
 
-		// ---- Darkness: ม่านราตรี. A dome of night for five seconds, then it collapses in a sonic blast.
+		// ---- Darkness: หลุมดำ. A black hole opens over the battlefield and drags everything toward it for five
+		// seconds, then collapses into a point and bursts.
+		static final double HOLE = 5.0;
+		static final double HALO = 7.5;
+		static final double DISK = 20.0;
+
 		void darkness() {
+			Vec3 core = start.add(0, 5.0, 0);
 			if (age == 0) {
 				sound(level, start, SoundEvents.SCULK_SHRIEKER_SHRIEK, 3.0f, 0.5f);
 				sound(level, start, SoundEvents.WARDEN_EMERGE, 1.5f, 1.0f);
+				circle("dark_circle", start, 21, castTicks);
+				fx.model("hole", "dark_hole", core, FxStage.yaw(0), Vec3.ZERO, 0.1);
+				fx.move("hole", FxStage.axis(1, 1, 0, 1.0), Vec3.ZERO, HOLE, castTicks);
+				fx.model("halo", "dark_halo", core, FxStage.yaw(0), Vec3.ZERO, 0.1, 0.1, 0.1, true);
+				fx.move("halo", FxStage.yaw(0), Vec3.ZERO, HALO, castTicks);
+				fx.model("disk", "dark_disk", core, disk(0), Vec3.ZERO, 0.1);
+				fx.move("disk", disk(1.2), Vec3.ZERO, DISK, castTicks);
+				fx.model("disk2", "dark_disk", core, disk2(0), Vec3.ZERO, 0.1);
+				fx.move("disk2", disk2(-1.0), Vec3.ZERO, DISK * 0.7, castTicks);
 			}
 			if (age < castTicks) {
-				double t = (double) age / castTicks;
-				farRing(level, NIGHT_DUST, start.add(0, 0.3, 0), 10.0 * t + 1.0, 30, age * 0.1, 0.2);
+				far(ParticleTypes.REVERSE_PORTAL, core, 10, 4.0, 2.0, 4.0, 0.05);
 				return;
 			}
 			int step = age - castTicks;
 			if (step < 100) {
-				if (step % 3 == 0) {
-					// The dome: big black dust in latitude rings, so it reads as a shape and not a cloud.
-					for (int band = 0; band < 5; band++) {
-						double lat = band * Math.PI / 10;
-						double r = 10.0 * Math.cos(lat);
-						farRing(level, NIGHT_DUST, start.add(0, 10.0 * Math.sin(lat), 0), r, (int) (8 + r * 2.4), step * 0.03 + band, 0.2);
-					}
-					far(ParticleTypes.SQUID_INK, start.add(0, 1.5, 0), 10, 6.0, 1.5, 6.0, 0.01);
-					far(ParticleTypes.LARGE_SMOKE, start.add(0, 1.0, 0), 6, 7.0, 1.0, 7.0, 0.005);
+				// The disk whirls and the hole throbs.
+				if (step % 4 == 0) {
+					fx.move("disk", disk(1.2 + (step + 4) * 0.35), Vec3.ZERO, DISK, 4);
+					fx.move("disk2", disk2(-1.0 - (step + 4) * 0.25), Vec3.ZERO, DISK * 0.7, 4);
+					fx.move("hole", FxStage.axis(1, 1, 0, 1.0 + (step + 4) * 0.1), Vec3.ZERO, HOLE * (1 + 0.05 * Math.sin(step * 0.3)), 4);
 				}
 				if (step % 10 == 0) {
-					far(ParticleTypes.SCULK_SOUL, start.add(0, 1.0, 0), 6, 7.0, 1.5, 7.0, 0.02);
+					turnCircle(null, 21, step * 0.04 + 0.6, 10);
+				}
+				// Darkness spirals in from all around.
+				if (step % 2 == 0) {
+					for (int i = 0; i < 3; i++) {
+						double a = level.random.nextDouble() * Math.PI * 2;
+						double r = 6 + level.random.nextDouble() * 5;
+						Vec3 from = core.add(Math.cos(a) * r, (level.random.nextDouble() - 0.5) * 3, Math.sin(a) * r);
+						Vec3 in = core.subtract(from).normalize();
+						Vec3 swirl = in.add(new Vec3(-in.z, 0, in.x).scale(1.2)).normalize();
+						far(ParticleTypes.SQUID_INK, from, 0, swirl.x, swirl.y, swirl.z, 0.7);
+					}
+				}
+				// Everything near is dragged toward the hole, harder the closer it gets.
+				for (LivingEntity enemy : enemiesNear(player, start, 12.0)) {
+					Vec3 pull = core.subtract(enemy.position());
+					double d = pull.length();
+					if (d > 1.5) {
+						Vec3 v = pull.normalize().scale(Math.min(0.12, 0.6 / d));
+						enemy.setDeltaMovement(enemy.getDeltaMovement().add(v.x, v.y * 0.5, v.z));
+						enemy.hurtMarked = true;
+					}
 				}
 				if (step % 20 == 0) {
 					sound(level, start, SoundEvents.WARDEN_HEARTBEAT, 2.0f, 0.6f);
@@ -846,51 +1071,83 @@ public final class SkillHandler {
 				return;
 			}
 			if (step == 100) {
-				// Collapse: the dome rushes inward and the centre bursts.
+				// Collapse: the disk is swallowed and the hole shrinks to a point.
+				fx.move("disk", disk(40), Vec3.ZERO, 0.01, 6);
+				fx.move("disk2", disk2(-30), Vec3.ZERO, 0.01, 6);
+				fx.move("halo", FxStage.yaw(0), Vec3.ZERO, 0.01, 6);
+				fx.move("hole", FxStage.axis(1, 1, 0, 14), Vec3.ZERO, 0.3, 6);
 				for (int i = 0; i < 40; i++) {
 					double angle = i * Math.PI * 2 / 40;
-					Vec3 at = start.add(Math.cos(angle) * 10.0, 1.0, Math.sin(angle) * 10.0);
-					far(ParticleTypes.SQUID_INK, at, 0, -Math.cos(angle), 0.05, -Math.sin(angle), 1.2);
+					Vec3 at = core.add(Math.cos(angle) * 10.0, 0, Math.sin(angle) * 10.0);
+					far(ParticleTypes.SQUID_INK, at, 0, -Math.cos(angle), 0, -Math.sin(angle), 1.2);
 				}
 				sound(level, start, SoundEvents.WARDEN_SONIC_BOOM, 3.0f, 0.5f);
 			}
 			if (step == 106) {
+				fx.kill("hole");
+				fx.kill("halo");
+				fx.kill("disk");
+				fx.kill("disk2");
+				fx.kill("circle");
+				shockwave("wave", "dark_wave", start, 11.0, 7);
 				for (int i = 0; i < 8; i++) {
 					double angle = i * Math.PI / 4;
 					for (double r = 1.5; r <= 10.0; r += 1.5) {
 						far(ParticleTypes.SONIC_BOOM, start.add(Math.cos(angle) * r, 1.0, Math.sin(angle) * r), 1, 0, 0, 0, 0);
 					}
 				}
-				far(ParticleTypes.EXPLOSION_EMITTER, start.add(0, 1, 0), 1, 0, 0, 0, 0);
-				far(ParticleTypes.LARGE_SMOKE, start.add(0, 1, 0), 40, 2.0, 1.0, 2.0, 0.15);
+				far(ParticleTypes.EXPLOSION_EMITTER, core, 1, 0, 0, 0, 0);
+				far(ParticleTypes.LARGE_SMOKE, core, 40, 2.0, 1.0, 2.0, 0.15);
 				sound(level, start, SoundEvents.GENERIC_EXPLODE, 3.0f, 0.5f);
 				for (LivingEntity enemy : enemiesNear(player, start, 10.0)) {
 					hit(level, player, enemy, 5.0f);
 					knock(enemy, start, 1.2, 0.6);
 				}
 				crater(level, player, start.add(direction.scale(3.0)), 3.0);
+			}
+			if (step >= 115) {
 				done = true;
 			}
 		}
 
-		// ---- Lightning: พิโรธอัสนี. Dash forward, then lightning jumps between up to five enemies.
+		float[] disk(double spin) {
+			return FxStage.mul(FxStage.axis(1, 0, 0.4, 0.35), FxStage.flat(spin));
+		}
+
+		float[] disk2(double spin) {
+			return FxStage.mul(FxStage.axis(-0.3, 0, 1, 0.5), FxStage.flat(spin));
+		}
+
+		// ---- Lightning: พิโรธอัสนี. A storm gathers over the caster, they dash through the line, then lightning leaps
+		// from enemy to enemy, each strike a spear from the cloud, and a last great bolt lands on the final one.
+		int finale = -1;
+		Vec3 lastSpot;
+
 		void lightning() {
 			Vec3 at = player.position();
 			if (age == 0) {
 				sound(level, at, SoundEvents.LIGHTNING_BOLT_IMPACT, 1.5f, 1.4f);
 				sound(level, at, SoundEvents.TRIDENT_THUNDER, 1.5f, 1.2f);
+				sound(level, at, SoundEvents.LIGHTNING_BOLT_THUNDER, 1.0f, 0.5f);
+				circle("thunder_circle", at, 8, castTicks);
+				fx.model("cloud", "thunder_cloud", start.add(0, 14, 0), FxStage.flat(0), Vec3.ZERO, 0.5);
+				fx.move("cloud", FxStage.flat(0.8), Vec3.ZERO, 30, castTicks);
 			}
 			if (age < castTicks) {
-				// Charge: sparks spin up the caster's body.
+				// Charge: sparks spin up the caster's body, and the cloud strikes them once.
 				for (int i = 0; i < 3; i++) {
 					double angle = age * 0.9 + i * Math.PI * 2 / 3;
 					far(ParticleTypes.ELECTRIC_SPARK, at.add(Math.cos(angle) * 1.2, age * 0.15, Math.sin(angle) * 1.2), 3, 0.1, 0.1, 0.1, 0.05);
 				}
 				far(SPARK_DUST, at.add(0, 1, 0), 2, 0.8, 1.0, 0.8, 0);
+				if (age == castTicks - 2) {
+					arc("charge", start.add(0, 14, 0), at.add(0, 1, 0), 6);
+				}
 				return;
 			}
 			int step = age - castTicks;
 			if (step == 0) {
+				endCircle(10, 6);
 				player.setDeltaMovement(direction.x * 2.6, 0.2, direction.z * 2.6);
 				player.hurtMarked = true;
 				sound(level, at, SoundEvents.LIGHTNING_BOLT_THUNDER, 1.5f, 1.6f);
@@ -905,7 +1162,12 @@ public final class SkillHandler {
 					}
 				}
 			}
+			if (step % 6 == 0 && (finale < 0 || step < finale)) {
+				fx.move("cloud", FxStage.flat(0.8 + (step + 6) * 0.08), Vec3.ZERO, 30, 6);
+			}
 			if (step == 5) {
+				// The dash leaves a streak of lightning behind.
+				arc("dash", start.add(0, 1, 0), at.add(0, 1, 0), 8);
 				// Pick the chain: nearest enemy, then the nearest one to it that is not hit yet.
 				Vec3 from = at;
 				List<LivingEntity> chain = new ArrayList<>();
@@ -931,32 +1193,91 @@ public final class SkillHandler {
 						extra.add(ground(level, at.add(direction.scale(i * 4.0)).add(0, 2, 0)));
 					}
 				}
+				finale = 5 + 4 * (bolts.size() + extra.size()) + 2;
 			}
 			if (step >= 5 && (step - 5) % 4 == 0) {
 				int index = (step - 5) / 4;
 				if (index < bolts.size()) {
 					LivingEntity enemy = bolts.get(index);
 					if (enemy.isAlive()) {
-						strike(enemy.position());
-						hit(level, player, enemy, 4.0f);
-						Effects.give(enemy, "slowness", 2, 20);
 						Vec3 previous = index == 0 ? at : bolts.get(index - 1).position();
-						line(level, ParticleTypes.ELECTRIC_SPARK, previous.add(0, 1.0, 0), enemy.position().add(0, 1.0, 0), 0.3);
-						line(level, SPARK_DUST, previous.add(0, 1.0, 0), enemy.position().add(0, 1.0, 0), 0.8);
+						strike(enemy.position());
+						spear(enemy.position(), index);
+						arc("arc" + index, previous.add(0, 1.0, 0), enemy.position().add(0, 1.0, 0), 8);
+						hit(level, player, enemy, 4.5f);
+						Effects.give(enemy, "slowness", 2, 20);
 						BlockChanges.placeBriefly(level, player, enemy.blockPosition(), Blocks.FIRE.defaultBlockState(), 60);
+						lastSpot = enemy.position();
 					}
 				} else if (index - bolts.size() < extra.size()) {
 					Vec3 spot = extra.get(index - bolts.size());
 					strike(spot);
+					spear(spot, index);
 					for (LivingEntity enemy : enemiesNear(player, spot, 3.0)) {
-						hit(level, player, enemy, 4.0f);
+						hit(level, player, enemy, 4.5f);
 					}
 					crater(level, player, spot, 1.5);
+					lastSpot = spot;
 				}
 			}
-			if (step > 5 + 4 * 6) {
+			// The last great bolt: a spear twice the size, a ring of thunder and a blast.
+			if (step == finale && lastSpot != null) {
+				Vec3 spot = lastSpot;
+				fx.model("judgment", "thunder_spear", spot, FxStage.yaw(0.7), new Vec3(0, 30, 0), 5.0);
+				fx.move("judgment", FxStage.yaw(0.7), new Vec3(0, 5.0 * 1.5 - 0.8, 0), 5.0, 2);
+				fx.later(14, () -> fx.move("judgment", FxStage.yaw(0.7), new Vec3(0, 2, 0), 0.01, 6));
+				fx.killLater("judgment", 21);
+				shockwave("jring", "thunder_ring", spot, 6.0, 7);
+				fx.move("cloud", FxStage.flat(5.0), Vec3.ZERO, 34, 3);
+				fx.later(10, () -> fx.move("cloud", FxStage.flat(6.0), Vec3.ZERO, 0.01, 10));
+				fx.killLater("cloud", 21);
+				for (int i = 0; i < 3; i++) {
+					double a = i * Math.PI * 2 / 3;
+					strike(spot.add(Math.cos(a) * 2.5, 0, Math.sin(a) * 2.5));
+				}
+				far(ParticleTypes.EXPLOSION_EMITTER, spot.add(0, 1, 0), 1, 0, 0, 0, 0);
+				far(ParticleTypes.ELECTRIC_SPARK, spot.add(0, 1, 0), 80, 3.0, 1.0, 3.0, 0.5);
+				sound(level, spot, SoundEvents.LIGHTNING_BOLT_THUNDER, 3.0f, 0.8f);
+				sound(level, spot, SoundEvents.GENERIC_EXPLODE, 2.0f, 1.2f);
+				for (LivingEntity enemy : enemiesNear(player, spot, 4.5)) {
+					hit(level, player, enemy, 4.0f);
+					knock(enemy, spot, 1.0, 0.6);
+				}
+				crater(level, player, spot, 1.5);
+			}
+			if (finale > 0 && step > finale + 22) {
 				done = true;
 			}
+		}
+
+		/** A crackling bolt of lightning stretched between two points, twisting as it flickers. */
+		void arc(String name, Vec3 from, Vec3 to, int life) {
+			Vec3 d = to.subtract(from);
+			double length = d.length();
+			if (length < 0.5) {
+				return;
+			}
+			double flat = Math.sqrt(d.x * d.x + d.z * d.z);
+			float[] q = FxStage.mul(FxStage.yaw(-Math.atan2(d.z, d.x)), FxStage.axis(0, 0, 1, Math.atan2(d.y, flat)));
+			fx.model(name, "thunder_arc", from, q, Vec3.ZERO, length, 3.0, 3.0);
+			fx.later(2, () -> fx.move(name, FxStage.mul(q, FxStage.axis(1, 0, 0, 2.0)), Vec3.ZERO, length, 2.5, 2.5, 0));
+			fx.later(4, () -> fx.move(name, FxStage.mul(q, FxStage.axis(1, 0, 0, 4.0)), Vec3.ZERO, length, 3.0, 3.0, 0));
+			fx.killLater(name, life);
+		}
+
+		/** A spear of lightning drops onto a spot and stands there crackling, with a ring of thunder under it. */
+		void spear(Vec3 at, int index) {
+			String name = "spear" + index;
+			float[] spin = FxStage.yaw(index * 1.3);
+			fx.model(name, "thunder_spear", at, spin, new Vec3(0, 20, 0), 3.2);
+			fx.move(name, spin, new Vec3(0, 3.2 * 1.5 - 0.5, 0), 3.2, 1);
+			fx.later(10, () -> fx.move(name, spin, new Vec3(0, 1, 0), 0.01, 4));
+			fx.killLater(name, 15);
+			String ring = "ring" + index;
+			fx.model(ring, "thunder_circle", at.add(0, 0.15, 0), FxStage.flat(index), Vec3.ZERO, 0.5);
+			fx.move(ring, FxStage.flat(index + 1.2), Vec3.ZERO, 8, 4);
+			fx.later(5, () -> fx.move(ring, FxStage.flat(index + 2.4), Vec3.ZERO, 0.01, 8));
+			fx.killLater(ring, 14);
 		}
 
 		/** A visual lightning bolt with a flash of sparks where it lands. */
@@ -976,12 +1297,9 @@ public final class SkillHandler {
 			if (age == 0) {
 				sound(level, start, SoundEvents.PLAYER_HURT_FREEZE, 2.0f, 0.5f);
 				sound(level, start, SoundEvents.ELDER_GUARDIAN_CURSE, 1.0f, 0.8f);
+				circle("ice_circle", start, 19, castTicks);
 			}
 			if (age < castTicks) {
-				double t = (double) age / castTicks;
-				if (age % 2 == 0) {
-					farRing(level, ICE_DUST, start.add(0, 0.2, 0), 9.0 * t + 1.0, 32, age * 0.07, 0.1);
-				}
 				far(ParticleTypes.SNOWFLAKE, start.add(0, 1.5, 0), 14, 8.0, 1.5, 8.0, 0.02);
 				return;
 			}
@@ -1019,16 +1337,17 @@ public final class SkillHandler {
 			for (int ringIndex = 0; ringIndex < 3; ringIndex++) {
 				if (step == ringIndex * 4) {
 					double r = 3.5 + ringIndex * 2.5;
-					int count = 8 + ringIndex * 4;
+					int count = 6 + ringIndex * 3;
+					double size = 1.6 + ringIndex * 0.4;
 					for (int i = 0; i < count; i++) {
 						double angle = i * Math.PI * 2 / count + ringIndex * 0.3 + level.random.nextDouble() * 0.2;
-						BlockPos base = BlockPos.containing(ground(level, start.add(Math.cos(angle) * r, 2.0, Math.sin(angle) * r)));
-						int height = 2 + ringIndex + level.random.nextInt(2);
-						for (int y = 0; y < height; y++) {
-							BlockChanges.placeBriefly(level, player, base.above(y),
-									(y == height - 1 ? Blocks.BLUE_ICE : Blocks.PACKED_ICE).defaultBlockState(), 50 - ringIndex * 4);
-						}
-						far(ICE_DUST, Vec3.atBottomCenterOf(base).add(0, height * 0.5, 0), 2, 0.3, height * 0.3, 0.3, 0);
+						Vec3 base = ground(level, start.add(Math.cos(angle) * r, 2.0, Math.sin(angle) * r));
+						// A crystal of ice bursts up out of the ground, leaning outward.
+						String name = "spire" + ringIndex + "_" + i;
+						float[] lean = FxStage.tiltOut(angle, 0.2 + ringIndex * 0.1, level.random.nextDouble() * 6);
+						fx.model(name, "ice_spire", base, lean, new Vec3(0, -0.5, 0), size, 0.01, size);
+						fx.move(name, lean, new Vec3(0, size * 0.9, 0), size, size, size, 3);
+						far(ICE_DUST, base.add(0, size, 0), 2, 0.3, size * 0.6, 0.3, 0);
 					}
 					sound(level, start, SoundEvents.GLASS_PLACE, 2.0f, 0.6f + ringIndex * 0.2f);
 					for (LivingEntity enemy : enemiesNear(player, start, r + 1.0)) {
@@ -1042,6 +1361,14 @@ public final class SkillHandler {
 				far(ParticleTypes.SNOWFLAKE, start.add(0, 3, 0), 12, 9.0, 3.0, 9.0, 0.01);
 			}
 			if (step == 50) {
+				// Everything shatters at once.
+				for (int ringIndex = 0; ringIndex < 3; ringIndex++) {
+					for (int i = 0; i < 6 + ringIndex * 3; i++) {
+						fx.kill("spire" + ringIndex + "_" + i);
+					}
+				}
+				fx.kill("circle");
+				shockwave("wave", "ice_wave", start, 10.0, 6);
 				sound(level, start, SoundEvents.GLASS_BREAK, 3.0f, 0.6f);
 				far(ParticleTypes.ITEM_SNOWBALL, start.add(0, 1, 0), 120, 8.0, 1.5, 8.0, 0.2);
 				for (LivingEntity enemy : marked) {
@@ -1050,6 +1377,8 @@ public final class SkillHandler {
 						far(ParticleTypes.ITEM_SNOWBALL, enemy.position().add(0, 1, 0), 30, 0.6, 0.8, 0.6, 0.15);
 					}
 				}
+			}
+			if (step >= 57) {
 				done = true;
 			}
 		}
@@ -1061,6 +1390,7 @@ public final class SkillHandler {
 				player.setHealth(Math.max(1.0f, player.getHealth() - 6.0f));
 				sound(level, at, SoundEvents.WARDEN_HEARTBEAT, 3.0f, 0.8f);
 				sound(level, at, SoundEvents.ELDER_GUARDIAN_CURSE, 1.0f, 0.6f);
+				circle("blood_circle", at, 9, castTicks);
 			}
 			if (age < castTicks) {
 				// Blood spirals up out of the caster.
@@ -1077,6 +1407,10 @@ public final class SkillHandler {
 				farRing(level, BLOOD_BIG, at.add(0, 0.2, 0), 4.0, 30, 0, 0.1);
 			}
 			if (step < 100) {
+				// The circle of the pact follows the caster and beats like a heart.
+				if (step % 5 == 0) {
+					turnCircle(at, step % 20 == 0 ? 10.5 : 9, step * 0.05 + 0.6, step % 20 == 0 ? 2 : 5);
+				}
 				if (step % 2 == 0) {
 					double angle = step * 0.4;
 					far(BLOOD_BIG, at.add(Math.cos(angle) * 1.0, 1.0, Math.sin(angle) * 1.0), 1, 0.05, 0.4, 0.05, 0);
@@ -1102,6 +1436,24 @@ public final class SkillHandler {
 					knock(enemy, at, 1.3, 0.7);
 				}
 				crater(level, player, at, 3.0);
+				fx.kill("circle");
+				shockwave("wave", "blood_wave", at, 8.5, 8);
+			}
+			// Thorns of blood burst out of the ground in eight lines, the far ones a moment later.
+			if (step == 100 || step == 102 || step == 104) {
+				int k = (step - 100) / 2;
+				double r = 2.5 + k * 2.5;
+				double size = 1.4 + k * 0.5;
+				for (int i = 0; i < 8; i++) {
+					double angle = i * Math.PI / 4 + k * 0.12;
+					Vec3 base = ground(level, at.add(Math.cos(angle) * r, 2.0, Math.sin(angle) * r));
+					String name = "thorn" + k + "_" + i;
+					float[] lean = FxStage.tiltOut(angle, 0.35, level.random.nextDouble() * 6);
+					fx.model(name, "blood_thorn", base, lean, new Vec3(0, -0.5, 0), size, 0.01, size);
+					fx.move(name, lean, new Vec3(0, size * 0.9, 0), size, size, size, 2);
+					fx.later(22 - k * 2, () -> fx.move(name, lean, new Vec3(0, -0.5, 0), size, 0.01, size, 6));
+					fx.killLater(name, 29 - k * 2);
+				}
 			}
 			// Crimson spikes burst outward in eight lines.
 			if (step > 100 && step <= 108) {
@@ -1113,12 +1465,39 @@ public final class SkillHandler {
 				}
 				farRing(level, BLOOD_RED, at.add(0, 0.5, 0), r, 12 + (step - 100) * 4, step * 0.2, 0.2);
 			}
-			if (step > 108) {
+			if (step > 130) {
 				done = true;
 			}
 		}
 
 		// ---- shared bits for the skills above
+
+		/** A ground circle that grows in, then turns slowly; returns its scale. */
+		void circle(String model, Vec3 at, double scale, int grow) {
+			circleAt = at.add(0, 0.12, 0);
+			fx.model("circle", model, circleAt, FxStage.flat(0), Vec3.ZERO, 0.1);
+			fx.move("circle", FxStage.flat(0.6), Vec3.ZERO, scale, grow);
+		}
+
+		/** Turns the ground circle (every few ticks), optionally following a point. */
+		void turnCircle(Vec3 follow, double scale, double turn, int ticks) {
+			Vec3 offset = follow == null ? Vec3.ZERO : follow.add(0, 0.12, 0).subtract(circleAt);
+			fx.move("circle", FxStage.flat(turn), offset, scale, ticks);
+		}
+
+		/** The circle flares and fades away. */
+		void endCircle(double flare, int ticks) {
+			fx.move("circle", FxStage.flat(age * 0.05 + 1.0), Vec3.ZERO, flare, 3);
+			fx.later(3, () -> fx.move("circle", FxStage.flat(age * 0.05 + 2.0), Vec3.ZERO, 0.01, ticks));
+			fx.killLater("circle", ticks + 4);
+		}
+
+		/** A flat ring of force that expands over the ground and is gone. */
+		void shockwave(String name, String model, Vec3 at, double radius, int ticks) {
+			fx.model(name, model, at.add(0, 0.3, 0), FxStage.flat(level.random.nextDouble() * 6), Vec3.ZERO, 0.5);
+			fx.move(name, FxStage.flat(level.random.nextDouble() * 6), Vec3.ZERO, radius * 2.05, ticks);
+			fx.killLater(name, ticks + 2);
+		}
 
 		/** Particles seen from far away, up to the client's long particle range. */
 		void far(ParticleOptions particle, Vec3 at, int count, double dx, double dy, double dz, double speed) {
