@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
@@ -1299,6 +1300,8 @@ public final class SkillHandler {
 	 * what stands on the ground.
 	 */
 	private static final class CraterJob implements BlockChanges.Job {
+		/** How far above the caster's feet the blast still flattens the land. */
+		private static final int SURFACE_CAP = 80;
 		private final ServerLevel level;
 		private final ServerPlayer owner;
 		private final List<int[]> columns = new ArrayList<>();
@@ -1325,7 +1328,17 @@ public final class SkillHandler {
 						double shape = 1.0 - (d / full) * (d / full);
 						int depth = (int) Math.round(maxDepth * shape * shape);
 						int height = (int) Math.round(maxHeight * Math.sqrt(shape));
-						columns.add(new int[] {cx + dx, cz + dz, baseY + height, baseY - depth, (int) (d * 100)});
+						int top = baseY + height;
+						BlockPos column = new BlockPos(cx + dx, baseY, cz + dz);
+						if (level.isLoaded(column)) {
+							// Everything standing in the blast goes: hills, trees and buildings, up to the real surface
+							// (capped so a mountain is cut down, not erased), and no time is wasted on empty air above it.
+							int surface = level.getHeight(Heightmap.Types.WORLD_SURFACE, cx + dx, cz + dz) - 1;
+							top = Math.min(surface, baseY + SURFACE_CAP);
+						}
+						if (top >= baseY - depth) {
+							columns.add(new int[] {cx + dx, cz + dz, top, baseY - depth, (int) (d * 100)});
+						}
 					}
 				}
 			}
