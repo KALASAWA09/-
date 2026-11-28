@@ -120,8 +120,19 @@ public final class KingShow {
 			double r = radius * (0.2 + level.random.nextDouble() * 0.6);
 			bolt(start.add(Math.cos(a) * r, 0, Math.sin(a) * r));
 		}
+		// The eight elements take their seats on the circle, light pours down from them, and they feed the core.
+		if (age == ORBS_AT) {
+			summonElements();
+		}
+		if (age > ORBS_AT && age < pauseStart && age % 10 == 0) {
+			moveElements(age, progress);
+		}
 		if (age == pauseStart) {
 			silence();
+			converge();
+		}
+		if (age == pauseStart + PAUSE / 2) {
+			dropCore();
 		}
 	}
 
@@ -138,6 +149,7 @@ public final class KingShow {
 				kill("wave" + w);
 			}
 		}
+		mushroom(step);
 		if (step == 2) {
 			// The beam widens and fades.
 			blockTransform("beam", 0.05, 90, 18);
@@ -316,6 +328,12 @@ public final class KingShow {
 	private void blast() {
 		kill("sky");
 		kill("runes");
+		kill("core");
+		for (int i = 0; i < ELEMENT_NAMES.length; i++) {
+			kill("orb" + i);
+			kill("pillar" + i);
+			kill("link" + i);
+		}
 		everyone(ModSounds.KING_BOOM, 1.0f, 1.0f, radius * 3);
 		// A beam of white fire where the core came down.
 		summonBlock("beam", "minecraft:white_concrete", start, 6, 90);
@@ -357,7 +375,148 @@ public final class KingShow {
 		}
 	}
 
+	// ---------------------------------------------------------------- the eight elements (3D models)
+
+	/** Spirit order, matching the seals painted on king_circle (clockwise from north). */
+	private static final String[] ELEMENT_NAMES = {"fire", "light", "water", "death", "darkness", "lightning", "ice", "blood"};
+	private static final int ORBS_AT = 40;
+	private static final int PILLARS_AT = 60;
+	private static final int LINKS_AT = 80;
+	/** How far under the sky circle the orbs hang. */
+	private static final double HANG = -2.5;
+	private static final double SKY = 45;
+
+	private double sealRadius() {
+		// The seals sit at 184 of 512 pixels from the texture's centre.
+		return circle * 2 * 184.0 / 512.0;
+	}
+
+	/** World angle of seal i once the circle has turned by the given amount. */
+	private static double sealAngle(int i, double turn) {
+		return -Math.PI / 2 + i * Math.PI / 4 - turn;
+	}
+
+	private void summonElements() {
+		Vec3 sky = start.add(0, SKY, 0);
+		double r = sealRadius();
+		double turn = ORBS_AT * 0.02 - 0.2;
+		for (int i = 0; i < ELEMENT_NAMES.length; i++) {
+			double a = sealAngle(i, turn);
+			summonModel("orb" + i, "king_orb_" + ELEMENT_NAMES[i], sky, yaw(i), Math.cos(a) * r, HANG + 6, Math.sin(a) * r, 0.01, 0.01, 0.01, 15);
+		}
+		summonModel("core", "king_core", sky, yaw(0), 0, HANG - 0.5, 0, 0.01, 0.01, 0.01, 15);
+		everyone(net.minecraft.sounds.SoundEvents.BEACON_ACTIVATE, 1.0f, 0.5f, radius * 3);
+	}
+
+	/** Every ten ticks: the orbs follow their seals round, the pillars reach the ground, the links feed the core. */
+	private void moveElements(int age, double progress) {
+		Vec3 sky = start.add(0, SKY, 0);
+		double r = sealRadius();
+		// Same turn the circle is heading to over these ten ticks.
+		double turn = age * 0.02;
+		double ground = SKY + HANG;
+		for (int i = 0; i < ELEMENT_NAMES.length; i++) {
+			double a = sealAngle(i, turn);
+			double x = Math.cos(a) * r, z = Math.sin(a) * r;
+			double bob = Math.sin(age * 0.1 + i) * 0.6;
+			double size = 7.0 + 2.0 * progress;
+			move("orb" + i, yaw(age * 0.12 + i), x, HANG + bob, z, size, size, size, 10);
+			if (age == PILLARS_AT) {
+				summonModel("pillar" + i, "king_pillar", sky, yaw(0), x, HANG, z, 1.0, 0.01, 1.0, 15);
+			} else if (age > PILLARS_AT) {
+				move("pillar" + i, yaw(age * 0.05), x, HANG, z, 1.0 + progress * 0.6, ground / 1.5, 1.0 + progress * 0.6, 10);
+			}
+			if (age == LINKS_AT) {
+				summonModel("link" + i, "king_link_" + ELEMENT_NAMES[i], sky, yaw(-a), 0, HANG, 0, 0.01, 5, 5, 15);
+			} else if (age > LINKS_AT) {
+				move("link" + i, yaw(-a), 0, HANG, 0, r, 5 + progress * 4, 5 + progress * 4, 10);
+			}
+		}
+		double core = 3 + 7 * progress;
+		move("core", yaw(age * -0.08), 0, HANG - 0.5, 0, core, core, core, 10);
+		if (age == PILLARS_AT) {
+			everyone(net.minecraft.sounds.SoundEvents.BEACON_POWER_SELECT, 1.0f, 0.5f, radius * 3);
+		}
+	}
+
+	/** At the silence: the elements are drunk into the core, which swells. */
+	private void converge() {
+		int half = PAUSE / 2;
+		for (int i = 0; i < ELEMENT_NAMES.length; i++) {
+			move("orb" + i, yaw(i * 2.0), 0, HANG - 0.5, 0, 0.5, 0.5, 0.5, half);
+			move("link" + i, yaw(-sealAngle(i, (castTicks - PAUSE) * 0.02)), 0, HANG, 0, 0.01, 2, 2, half);
+			move("pillar" + i, yaw(0), 0, HANG, 0, 0.3, 0.01, 0.3, 10);
+		}
+		move("core", yaw(Math.PI * 0.9), 0, HANG - 0.5, 0, 15, 15, 15, half);
+	}
+
+	/** Then the core shrinks to a burning point and falls to the ground. */
+	private void dropCore() {
+		for (int i = 0; i < ELEMENT_NAMES.length; i++) {
+			kill("orb" + i);
+			kill("link" + i);
+			kill("pillar" + i);
+		}
+		move("core", yaw(Math.PI * 1.8), 0, -SKY + 1, 0, 2.5, 2.5, 2.5, PAUSE / 2);
+	}
+
+	/** The mushroom cloud: a burning stem that climbs to sixty-odd blocks under a rolling cap, then breaks up. */
+	private void mushroom(int step) {
+		switch (step) {
+			case 3 -> {
+				summonModel("stem", "king_cloud_stem", start, yaw(0), 0, 0.75, 0, 0.5, 0.5, 0.5, 11);
+				summonModel("cap", "king_cloud_cap", start, yaw(0), 0, 2, 0, 1, 1, 1, 11);
+			}
+			case 4 -> {
+				move("stem", yaw(0.2), 0, 1.5 * 10, 0, 5, 10, 5, 25);
+				move("cap", yaw(0.3), 0, 31, 0, 8, 8, 8, 25);
+			}
+			case 30 -> {
+				move("stem", yaw(0.5), 0, 1.5 * 22, 0, 7, 22, 7, 70);
+				move("cap", yaw(0.9), 0, 69, 0, 13, 13, 13, 70);
+			}
+			case 100 -> {
+				move("stem", yaw(0.8), 0, 1.5 * 23, 0, 6.5, 23, 6.5, 80);
+				move("cap", yaw(1.6), 0, 71.5, 0, 15, 12, 15, 80);
+			}
+			case 180 -> {
+				move("stem", yaw(1.0), 0, 1.5 * 23, 0, 0.01, 23, 0.01, 60);
+				move("cap", yaw(2.2), 0, 76, 0, 22, 1.5, 22, 66);
+			}
+			case 250 -> {
+				kill("stem");
+				kill("cap");
+			}
+			default -> {
+			}
+		}
+	}
+
 	// ---------------------------------------------------------------- display entity helpers
+
+	private static float[] yaw(double angle) {
+		return new float[] {0, (float) Math.sin(angle / 2), 0, (float) Math.cos(angle / 2)};
+	}
+
+	private static String transformation(float[] q, double tx, double ty, double tz, double sx, double sy, double sz) {
+		return String.format(Locale.ROOT,
+				"{left_rotation:[%.5ff,%.5ff,%.5ff,%.5ff],right_rotation:[0f,0f,0f,1f],translation:[%.3ff,%.3ff,%.3ff],scale:[%.3ff,%.3ff,%.3ff]}",
+				q[0], q[1], q[2], q[3], tx, ty, tz, sx, sy, sz);
+	}
+
+	/** Summons one of the mod's 3D models (a Blockbench item model) as an item display. */
+	private void summonModel(String name, String model, Vec3 at, float[] q, double tx, double ty, double tz, double sx, double sy, double sz, int block) {
+		cmd(String.format(Locale.ROOT,
+				"summon minecraft:item_display %.3f %.3f %.3f {Tags:[\"%s\",\"%s\",\"%s_%s\"],"
+						+ "item:{id:\"minecraft:paper\",count:1,components:{\"minecraft:item_model\":\"sacredsouls:%s\"}},"
+						+ "item_display:\"none\",brightness:{sky:15,block:%d},view_range:12f,transformation:%s}",
+				at.x, at.y, at.z, TAG, tag, tag, name, model, block, transformation(q, tx, ty, tz, sx, sy, sz)));
+	}
+
+	private void move(String name, float[] q, double tx, double ty, double tz, double sx, double sy, double sz, int ticks) {
+		cmd(String.format(Locale.ROOT, "data merge entity @e[tag=%s_%s,limit=1] {start_interpolation:0,interpolation_duration:%d,transformation:%s}",
+				tag, name, ticks, transformation(q, tx, ty, tz, sx, sy, sz)));
+	}
 
 	/** A rotation that lays the flat model on the ground, turned by an angle around the vertical. */
 	private static float[] flat(double turn) {

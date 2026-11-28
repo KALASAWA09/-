@@ -25,8 +25,7 @@ import com.kalasawa.sacredsouls.spirit.Spirit;
 
 /**
  * Draws the Spirit King ultimate on the client, tick by tick, so the shapes are smooth and whole:
- * the sky darkens, a great magic circle draws itself overhead, the eight elements orbit and are drunk
- * into its core, everything falls silent for a moment, then a white flash, three waves, a mushroom cloud
+ * the sky darkens, sparks fly from the eight element orbs (3D models from the server), everything falls silent for a moment, then a white flash, three waves, a mushroom cloud
  * and ash. The server only sends the start; damage and blocks stay on the server.
  */
 public final class KingEffects {
@@ -130,34 +129,17 @@ public final class KingEffects {
 			// The shadow on the ground marks the edge of the blast.
 			ring(level, SHADOW, c.add(0, 0.4, 0), e.radius(), 10, spin, Math.min(1.0, t / 0.4));
 			ring(level, VIOLET, c.add(0, 0.6, 0), e.radius(), 4, -spin, Math.min(1.0, t / 0.4));
-			if (t > 0.35 && age % 6 == 0) {
-				// Eight pillars of light reach down from the circle's rim.
-				for (int i = 0; i < 8; i++) {
-					double a = spin + i * Math.PI / 4;
-					Vec3 top = sky.add(Math.cos(a) * circle, 0, Math.sin(a) * circle);
-					line(level, ParticleTypes.END_ROD, top, new Vec3(top.x, c.y, top.z), 3.0, random);
+			// The orbs, pillars, links and core are 3D models from the server; the client adds sparks around each orb.
+			if (age > 40 && age % 2 == 0) {
+				double seal = circle * 2 * 184.0 / 512.0;
+				double turn = (age - 10) * 0.02;
+				Spirit[] spirits = Spirit.values();
+				for (int i = 0; i < spirits.length; i++) {
+					double a = -Math.PI / 2 + i * Math.PI / 4 - turn;
+					Vec3 at = sky.add(Math.cos(a) * seal, -2.5, Math.sin(a) * seal);
+					add(level, element(spirits[i]), at.add(random.nextGaussian() * 1.5, random.nextGaussian() * 1.5, random.nextGaussian() * 1.5),
+							random.nextGaussian() * 0.04, -0.05, random.nextGaussian() * 0.04);
 				}
-			}
-			// The eight elements orbit, then spiral in and pour into the core.
-			double orbit = t < 0.55 ? circle * 1.1 : circle * 1.1 * Mth.clamp((0.95 - t) / 0.4, 0, 1);
-			double orbitSpin = age * (0.03 + 0.15 * t * t);
-			Spirit[] spirits = Spirit.values();
-			for (int i = 0; i < spirits.length; i++) {
-				double a = orbitSpin + i * Math.PI / 4;
-				Vec3 at = sky.add(Math.cos(a) * orbit, Math.sin(age * 0.1 + i) * 2.0, Math.sin(a) * orbit);
-				DustParticleOptions color = new DustParticleOptions(spirits[i].color, 4.0f);
-				for (int k = 0; k < 3; k++) {
-					add(level, color, at.add(random.nextGaussian() * 0.8, random.nextGaussian() * 0.8, random.nextGaussian() * 0.8), 0, 0, 0);
-				}
-				add(level, element(spirits[i]), at, random.nextGaussian() * 0.05, random.nextGaussian() * 0.05, random.nextGaussian() * 0.05);
-				if (t > 0.3 && age % 4 == i % 4) {
-					line(level, color, at, sky, 2.5, random);
-				}
-			}
-			// The core grows as it drinks the elements.
-			int glow = 1 + (int) (t * 6);
-			for (int k = 0; k < glow; k++) {
-				add(level, CORE, sky.add(random.nextGaussian() * t * 2.5, random.nextGaussian() * t * 2.5, random.nextGaussian() * t * 2.5), 0, 0, 0);
 			}
 		} else {
 			// The silence before the blow: the core shrinks to a point, then a thin beam falls to the ground.
@@ -226,7 +208,7 @@ public final class KingEffects {
 		if (step < 260) {
 			double rise = Math.min(1.0, step / 70.0);
 			double top = 8 + 62 * rise;
-			for (int k = 0; k < 5; k++) {
+			for (int k = 0; k < 2; k++) {
 				double y = random.nextDouble() * top;
 				add(level, y < top * 0.55 ? EMBER : ASH, c.add(random.nextGaussian() * 3.5, y, random.nextGaussian() * 3.5), 0, 0.05, 0);
 			}
@@ -234,7 +216,7 @@ public final class KingEffects {
 				add(level, ParticleTypes.CAMPFIRE_SIGNAL_SMOKE, c.add(random.nextGaussian() * 3, top * 0.3, random.nextGaussian() * 3), 0, 0.12, 0);
 			}
 			double cap = 10 + 24 * rise;
-			for (int k = 0; k < 10; k++) {
+			for (int k = 0; k < 4; k++) {
 				double a = random.nextDouble() * Math.PI * 2;
 				double r = cap * Math.sqrt(random.nextDouble());
 				double h = top + (1.0 - r / cap) * 8 + random.nextGaussian();

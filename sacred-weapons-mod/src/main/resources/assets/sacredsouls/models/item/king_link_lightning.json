@@ -1,0 +1,82 @@
+{
+ "credit": "Sacred Souls - open in Blockbench as a Java Block/Item model",
+ "texture_size": [
+  16,
+  16
+ ],
+ "textures": {
+  "bar": "sacredsouls:item/king_orb_lightning",
+  "particle": "sacredsouls:item/king_orb_lightning"
+ },
+ "elements": [
+  {
+   "from": [
+    8,
+    7.6,
+    7.6
+   ],
+   "to": [
+    24,
+    8.4,
+    8.4
+   ],
+   "shade": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": "#bar"
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": "#bar"
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": "#bar"
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": "#bar"
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": "#bar"
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": "#bar"
+    }
+   }
+  }
+ ]
+}
