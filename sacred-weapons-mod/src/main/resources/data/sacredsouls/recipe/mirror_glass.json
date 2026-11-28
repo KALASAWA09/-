@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:prismarine_shard",
+    "B": "minecraft:glass_pane",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:mirror_glass",
+    "count": 1
+  }
+}

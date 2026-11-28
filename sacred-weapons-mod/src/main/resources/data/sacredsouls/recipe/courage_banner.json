@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:white_banner",
+    "B": "minecraft:gold_ingot",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:courage_banner",
+    "count": 1
+  }
+}

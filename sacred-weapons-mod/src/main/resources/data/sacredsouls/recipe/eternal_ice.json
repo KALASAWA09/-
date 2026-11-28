@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:blue_ice",
+    "B": "minecraft:snowball",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:eternal_ice",
+    "count": 1
+  }
+}

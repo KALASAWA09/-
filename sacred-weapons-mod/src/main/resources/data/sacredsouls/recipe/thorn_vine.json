@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:cactus",
+    "B": "minecraft:vine",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:thorn_vine",
+    "count": 1
+  }
+}

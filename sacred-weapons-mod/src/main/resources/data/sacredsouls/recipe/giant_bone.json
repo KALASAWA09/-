@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:bone_block",
+    "B": "minecraft:bone",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:giant_bone",
+    "count": 1
+  }
+}

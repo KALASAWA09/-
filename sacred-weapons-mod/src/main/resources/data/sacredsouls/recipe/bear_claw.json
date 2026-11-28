@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:salmon",
+    "B": "minecraft:bone",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:bear_claw",
+    "count": 1
+  }
+}

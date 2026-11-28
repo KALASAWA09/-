@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "DDD",
+    "DSD",
+    "DDD"
+  ],
+  "key": {
+    "D": "minecraft:diamond",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:soul_flame",
+    "count": 1
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:pink_petals",
+    "B": "minecraft:sugar_cane",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:calm_lotus",
+    "count": 1
+  }
+}

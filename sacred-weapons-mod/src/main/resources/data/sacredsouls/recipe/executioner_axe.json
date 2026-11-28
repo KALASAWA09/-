@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:iron_axe",
+    "B": "minecraft:iron_ingot",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:executioner_axe",
+    "count": 1
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:glass_bottle",
+    "B": "minecraft:black_wool",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:thief_mask",
+    "count": 1
+  }
+}

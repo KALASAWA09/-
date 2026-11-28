@@ -1,0 +1,21 @@
+{
+	"schemaVersion": 1,
+	"id": "sacredsouls",
+	"version": "${version}",
+	"name": "Sacred Souls",
+	"description": "วิญญาณในตัวผู้เล่น กลืนไอเทมวิญญาณ 5 จาก 20 ชนิด และชิงฉายา 9 แบบ สำหรับ SMP",
+	"authors": ["KALASAWA"],
+	"license": "All-Rights-Reserved",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["com.kalasawa.sacredsouls.SacredSouls"],
+		"client": ["com.kalasawa.sacredsouls.client.SacredSoulsClient"]
+	},
+	"mixins": ["sacredsouls.mixins.json"],
+	"depends": {
+		"fabricloader": ">=0.17.3",
+		"minecraft": "~1.21.11",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}

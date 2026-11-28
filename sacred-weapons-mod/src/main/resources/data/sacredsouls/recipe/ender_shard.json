@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:ender_eye",
+    "B": "minecraft:ender_pearl",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:ender_shard",
+    "count": 1
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:gold_ingot",
+    "B": "minecraft:lapis_lazuli",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:golden_scarab",
+    "count": 1
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:feather",
+    "B": "minecraft:black_dye",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:crow_feather",
+    "count": 1
+  }
+}

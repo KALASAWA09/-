@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:diamond",
+    "B": "minecraft:redstone",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:miner_core",
+    "count": 1
+  }
+}

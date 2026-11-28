@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:iron_sword",
+    "B": "minecraft:green_dye",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:mantis_blade",
+    "count": 1
+  }
+}

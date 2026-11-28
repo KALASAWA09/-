@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:spectral_arrow",
+    "B": "minecraft:arrow",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:hunter_mark",
+    "count": 1
+  }
+}

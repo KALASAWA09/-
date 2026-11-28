@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:milk_bucket",
+    "B": "minecraft:quartz",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:purity_charm",
+    "count": 1
+  }
+}

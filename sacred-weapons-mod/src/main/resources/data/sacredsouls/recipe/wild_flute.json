@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA",
+    "BSB",
+    "ABA"
+  ],
+  "key": {
+    "A": "minecraft:bone",
+    "B": "minecraft:bamboo",
+    "S": "minecraft:soul_sand"
+  },
+  "result": {
+    "id": "sacredsouls:wild_flute",
+    "count": 1
+  }
+}
