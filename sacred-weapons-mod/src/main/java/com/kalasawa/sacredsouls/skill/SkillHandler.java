@@ -710,6 +710,18 @@ public final class SkillHandler {
 			}
 		}
 
+		/** Where the great meteor is at a tick of the fire cast: it falls from 40 blocks up and 14 back. */
+		Vec3 meteorAt(int tick) {
+			double fall = 1 - Math.min(1.0, (double) tick / castTicks);
+			return target.add(direction.scale(-14.0 * fall)).add(0, 40.0 * fall + 1.5, 0);
+		}
+
+		/** Where small meteor i is: each lands 4 + 5i ticks after the great one. */
+		Vec3 smallAt(int i, int tick) {
+			double fall = 1 - Math.min(1.0, tick / (double) (castTicks + 4 + i * 5));
+			return extra.get(i).add(direction.scale(-9.0 * fall)).add(0, 28.0 * fall + 0.6, 0);
+		}
+
 		// ---- Water: มังกรวารี. A dragon of water rises out of a circle, coils once around the caster, then dives
 		// forward through everything in its path and crashes into the ground in a great splash.
 		static final int DRAGON_LENGTH = 12;
